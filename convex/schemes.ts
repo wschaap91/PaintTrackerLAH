@@ -210,6 +210,85 @@ export const setPublic = mutation({
   },
 })
 
+export const listPublicSchemes = query({
+  args: {
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const limit = args.limit ?? 50
+
+    const allSchemes = await ctx.db.query('schemes').collect()
+    const publicSchemes = allSchemes
+      .filter(s => s.isPublic === true && s.slug)
+      .sort((a, b) => b._creationTime - a._creationTime)
+      .slice(0, limit)
+
+    const result = await Promise.all(
+      publicSchemes.map(async (scheme) => {
+        const steps = await ctx.db
+          .query('schemeSteps')
+          .withIndex('by_scheme', q => q.eq('schemeId', scheme._id))
+          .collect()
+
+        const sortedSteps = steps.sort((a, b) => a.sortOrder - b.sortOrder)
+
+        const swatches: string[] = []
+        for (const step of sortedSteps) {
+          if (step.paintId && swatches.length < 5) {
+            const paint = await ctx.db.get(step.paintId)
+            if (paint) swatches.push(paint.hexColor)
+          }
+        }
+
+        return {
+          ...scheme,
+          stepCount: steps.length,
+          swatches,
+        }
+      }),
+    )
+
+    return result
+  },
+})
+
+export const cloneScheme = mutation({
+  args: { schemeId: v.id('schemes') },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Unauthenticated')
+
+    const source = await ctx.db.get(args.schemeId)
+    if (!source || !source.isPublic) throw new Error('Scheme not found or not public')
+
+    const newSchemeId = await ctx.db.insert('schemes', {
+      userId: identity.subject,
+      name: `${source.name} (copy)`,
+      description: source.description,
+      isPublic: false,
+    })
+
+    const steps = await ctx.db
+      .query('schemeSteps')
+      .withIndex('by_scheme', q => q.eq('schemeId', args.schemeId))
+      .collect()
+
+    const sortedSteps = steps.sort((a, b) => a.sortOrder - b.sortOrder)
+    for (let i = 0; i < sortedSteps.length; i++) {
+      const step = sortedSteps[i]!
+      await ctx.db.insert('schemeSteps', {
+        schemeId: newSchemeId,
+        paintId: step.paintId,
+        sortOrder: i,
+        technique: step.technique,
+        notes: step.notes,
+      })
+    }
+
+    return newSchemeId
+  },
+})
+
 export const remove = mutation({
   args: { id: v.id('schemes') },
   handler: async (ctx, args) => {

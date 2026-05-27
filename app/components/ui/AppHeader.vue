@@ -8,6 +8,7 @@ const navItems = [
   { label: 'Paints', to: '/paints' },
   { label: 'Schemes', to: '/schemes' },
   { label: 'Projects', to: '/projects' },
+  { label: 'Discover', to: '/discover' },
 ]
 
 function isActive(to: string): boolean {
