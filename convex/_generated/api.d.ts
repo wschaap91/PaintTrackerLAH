@@ -8,6 +8,9 @@
  * @module
  */
 
+import type * as auth from "../auth.js";
+import type * as http from "../http.js";
+import type * as migrations from "../migrations.js";
 import type * as paints from "../paints.js";
 import type * as projects from "../projects.js";
 import type * as schemes from "../schemes.js";
@@ -19,6 +22,9 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  auth: typeof auth;
+  http: typeof http;
+  migrations: typeof migrations;
   paints: typeof paints;
   projects: typeof projects;
   schemes: typeof schemes;
