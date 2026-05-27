@@ -60,6 +60,7 @@ export const create = mutation({
     specialType: v.union(v.string(), v.null()),
     barcode: v.union(v.string(), v.null()),
     brandCode: v.union(v.string(), v.null()),
+    catalogPaintId: v.optional(v.id('catalogPaints')),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity()
