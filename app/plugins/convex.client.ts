@@ -11,15 +11,21 @@ export default defineNuxtPlugin(() => {
 
   const client = new ConvexClient(convexUrl)
 
+  // Only clear auth on rejection; true means server confirmed the token is valid.
+  function onAuthChange(isAuth: boolean) {
+    if (isAuth) {
+      useState<boolean>('auth:isAuthenticated').value = true
+    } else {
+      localStorage.removeItem('convex_auth_token')
+      useState<boolean>('auth:isAuthenticated').value = false
+    }
+  }
+
   // Restore token from previous session
   if (localStorage.getItem('convex_auth_token')) {
     client.setAuth(
       async () => localStorage.getItem('convex_auth_token'),
-      () => {
-        // Token invalidated — clear storage and reactive auth state
-        localStorage.removeItem('convex_auth_token')
-        useState<boolean>('auth:isAuthenticated').value = false
-      }
+      onAuthChange,
     )
   }
 
@@ -28,10 +34,7 @@ export default defineNuxtPlugin(() => {
       localStorage.setItem('convex_auth_token', token)
       client.setAuth(
         async () => localStorage.getItem('convex_auth_token'),
-        () => {
-          localStorage.removeItem('convex_auth_token')
-          useState<boolean>('auth:isAuthenticated').value = false
-        }
+        onAuthChange,
       )
     } else {
       localStorage.removeItem('convex_auth_token')
