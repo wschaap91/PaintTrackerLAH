@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { api } from '../../../convex/_generated/api'
+
 definePageMeta({ layout: false })
 
 const route = useRoute()
@@ -10,15 +12,22 @@ const isLoading = ref(true)
 const notFound = ref(false)
 
 onMounted(async () => {
-  const { api } = await import('../../../convex/_generated/api')
-  const result = await client.query(api.schemes.getPublicScheme, { slug })
-  if (!result) {
+  try {
+    const result = await client.query(api.schemes.getPublicScheme, { slug })
+    if (!result) {
+      notFound.value = true
+    }
+    else {
+      scheme.value = result
+    }
+  }
+  catch (err) {
+    console.error('[s/[slug].vue] Failed to load public scheme:', err)
     notFound.value = true
   }
-  else {
-    scheme.value = result
+  finally {
+    isLoading.value = false
   }
-  isLoading.value = false
 })
 
 useHead(() => ({
