@@ -1,6 +1,6 @@
 ---
 version: 2
-status: deferred
+status: archived
 date: 2026-05-27
 author: /review
 previous: prd-v1.md

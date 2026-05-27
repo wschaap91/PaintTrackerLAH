@@ -11,18 +11,37 @@ const isEditing = ref(false)
 const error = ref('')
 const showDeleteConfirm = ref(false)
 const copied = ref(false)
+const isTogglingPublic = ref(false)
+const copyFailed = ref(false)
 const origin = import.meta.client ? window.location.origin : ''
 
 async function togglePublic() {
-  if (!scheme.value) return
-  await setPublic({ id, isPublic: !scheme.value.isPublic })
+  if (!scheme.value || isTogglingPublic.value) return
+  isTogglingPublic.value = true
+  try {
+    await setPublic({ id, isPublic: !scheme.value.isPublic })
+  }
+  catch {
+    error.value = 'Failed to update sharing settings.'
+  }
+  finally {
+    isTogglingPublic.value = false
+  }
 }
 
 async function copyLink() {
-  const url = `${window.location.origin}/s/${scheme.value?.slug}`
-  await navigator.clipboard.writeText(url)
-  copied.value = true
-  setTimeout(() => { copied.value = false }, 2000)
+  const slug = scheme.value?.slug
+  if (!slug) return
+  const url = `${window.location.origin}/s/${slug}`
+  try {
+    await navigator.clipboard.writeText(url)
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 2000)
+  }
+  catch {
+    copyFailed.value = true
+    setTimeout(() => { copyFailed.value = false }, 2000)
+  }
 }
 
 function formatTechnique(t: string): string {
@@ -116,6 +135,10 @@ async function handleDelete() {
             </div>
           </li>
         </ol>
+        <div v-if="error" class="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+          {{ error }}
+        </div>
+
         <!-- Sharing section -->
         <div class="mt-6 bg-white rounded-lg border border-gray-200 p-4">
           <div class="flex items-center justify-between">
@@ -124,9 +147,11 @@ async function handleDelete() {
               <p class="text-xs text-gray-500 mt-0.5">Make this scheme visible to anyone with the link</p>
             </div>
             <button
-              :class="scheme.isPublic
-                ? 'bg-gray-900 text-white'
-                : 'bg-gray-100 text-gray-700'"
+              :disabled="isTogglingPublic"
+              :class="[
+                scheme.isPublic ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700',
+                isTogglingPublic ? 'opacity-50 cursor-not-allowed' : '',
+              ]"
               class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none"
               @click="togglePublic"
             >
@@ -146,7 +171,7 @@ async function handleDelete() {
               class="text-xs text-gray-700 border border-gray-200 rounded px-2 py-1.5 hover:bg-gray-50"
               @click="copyLink"
             >
-              {{ copied ? 'Copied!' : 'Copy' }}
+              {{ copied ? 'Copied!' : copyFailed ? 'Failed!' : 'Copy' }}
             </button>
           </div>
         </div>

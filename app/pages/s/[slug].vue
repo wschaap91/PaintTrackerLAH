@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { api } from '../../../convex/_generated/api'
+
 definePageMeta({ layout: false })
 
 const route = useRoute()
@@ -8,17 +10,25 @@ const client = useConvexClient()
 const scheme = ref<any>(null)
 const isLoading = ref(true)
 const notFound = ref(false)
+const loadError = ref(false)
 
 onMounted(async () => {
-  const { api } = await import('../../../convex/_generated/api')
-  const result = await client.query(api.schemes.getPublicScheme, { slug })
-  if (!result) {
-    notFound.value = true
+  try {
+    const result = await client.query(api.schemes.getPublicScheme, { slug })
+    if (!result) {
+      notFound.value = true
+    }
+    else {
+      scheme.value = result
+    }
   }
-  else {
-    scheme.value = result
+  catch (err) {
+    console.error('[s/[slug].vue] Failed to load public scheme:', err)
+    loadError.value = true
   }
-  isLoading.value = false
+  finally {
+    isLoading.value = false
+  }
 })
 
 useHead(() => ({
@@ -50,6 +60,16 @@ function formatTechnique(t: string): string {
       <div v-else-if="notFound" class="text-center py-16">
         <p class="text-gray-500">Scheme not found or no longer public.</p>
         <NuxtLink to="/" class="mt-4 inline-block text-sm text-gray-700 hover:underline">Go to PaintTracker</NuxtLink>
+      </div>
+
+      <div v-else-if="loadError" class="text-center py-16">
+        <p class="text-gray-500">Something went wrong loading this scheme.</p>
+        <button
+          @click="$router.go(0)"
+          class="mt-4 inline-block text-sm text-gray-700 border border-gray-200 rounded-lg px-4 py-2 hover:bg-gray-50 transition-colors"
+        >
+          Try again
+        </button>
       </div>
 
       <div v-else-if="scheme">

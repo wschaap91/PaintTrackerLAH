@@ -166,18 +166,29 @@ export const getPublicScheme = query({
 
     const stepsWithPaints = await Promise.all(
       sortedSteps.map(async (step) => {
-        const paint = step.paintId ? await ctx.db.get(step.paintId) : null
-        return { ...step, paint }
+        const rawPaint = step.paintId ? await ctx.db.get(step.paintId) : null
+        const paint = rawPaint ? { name: rawPaint.name, brand: rawPaint.brand, hexColor: rawPaint.hexColor } : null
+        return {
+          _id: step._id,
+          technique: step.technique,
+          notes: step.notes,
+          paint,
+        }
       }),
     )
 
     const user = scheme.userId ? await ctx.db.get(scheme.userId as Id<'users'>) : null
-    const authorName = user?.name ?? (user as any)?.email ?? 'A PaintTracker user'
+    const authorName = user?.name ?? 'A PaintTracker user'
 
     return {
-      ...scheme,
-      steps: stepsWithPaints,
+      _id: scheme._id,
+      _creationTime: scheme._creationTime,
+      name: scheme.name,
+      description: scheme.description,
+      slug: scheme.slug,
+      isPublic: scheme.isPublic,
       authorName,
+      steps: stepsWithPaints,
     }
   },
 })
