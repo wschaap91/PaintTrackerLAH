@@ -1,13 +1,14 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-27 (after PRD v3 cycle)
+Last updated: 2026-05-27 (after PRD v3 cycle, PR #15 refresh token flow)
 
 ## Architecture
 
-Nuxt 4 SPA frontend communicates with Convex Cloud exclusively through a single `ConvexClient` instance (initialised in `convex.client.ts`). All data access is mediated by custom composables — no component touches the Convex API directly. Auth tokens live in `localStorage` and are re-hydrated on every page load. A global route middleware blocks unauthenticated users from all routes except `/auth/**`, `/s/**`, and `/discover`.
+Nuxt 4 SPA frontend communicates with Convex Cloud exclusively through a single `ConvexClient` instance (initialised in `convex.client.ts`). All data access is mediated by custom composables — no component touches the Convex API directly. Auth tokens (JWT + refresh token) live in `localStorage` and are re-hydrated on every page load via in-memory variables. A global route middleware blocks unauthenticated users from all routes except `/auth/**`, `/s/**`, and `/discover`.
 
 - Frontend → Convex Cloud via ConvexClient (WebSocket + HTTP)
-- Auth → @convex-dev/auth Password provider; JWT stored in localStorage (ADR-004)
+- Auth → @convex-dev/auth Password provider; JWT + refresh token stored in localStorage (ADR-004)
+- Token refresh: `fetchToken({ forceRefreshToken })` callback exchanges refresh token for a fresh JWT ~10s before expiry, enabling sessions up to 30 days
 - Public routes: `/s/[slug]`, `/discover`, `/auth/*` — no token required
 
 ## Stack
@@ -85,7 +86,8 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 
 - **Composable-only data access**: `useConvexQuery`, `useConvexMutation`, `useConvexClient` wrap all Convex calls (ADR-008)
 - **Domain composables**: `usePaints`, `useSchemes`, `useProjects`, `useImportExport`
-- **Auth state**: `useState('auth:isAuthenticated')` as reactive Nuxt state; JWT persisted in `localStorage`
+- **Auth state**: `useState('auth:isAuthenticated')` as reactive Nuxt state; JWT + refresh token persisted in `localStorage`; in-memory `authToken`/`refreshToken` variables serve as the authoritative fast-path so `fetchToken` avoids synchronous localStorage reads
+- **Token refresh**: `client.setAuth(fetchToken, onAuthChange)` — Convex calls `fetchToken({ forceRefreshToken: true })` before JWT expiry; exchanges refresh token via `api.auth.signIn({ refreshToken })`; rotates refresh token if server returns a new one; failed refresh falls through to `null` triggering clean logout via `onAuthChange`
 - **Data scoping**: every query/mutation resolves `userId` via `ctx.auth.getUserIdentity().subject`
 - **Route guard**: `auth.global.ts` middleware — public exemptions: `/auth/**`, `/s/**`, `/discover`
 - **Error handling**: try/catch/finally with local `error` ref + `isLoading` ref in page components
