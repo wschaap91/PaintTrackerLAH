@@ -14,9 +14,12 @@ const router = useRouter()
 
 const sortBy = ref<'recent' | 'popular'>('recent')
 const filterTechnique = ref('')
+const error = ref('')
 const LIMIT = 24
 
 async function load(reset = false) {
+  error.value = ''
+
   if (reset) {
     schemes.value = []
     isLoading.value = true
@@ -25,23 +28,29 @@ async function load(reset = false) {
   }
 
   const offset = reset ? 0 : schemes.value.length
-  const result = await client.query(api.schemes.listPublicSchemes, {
-    limit: LIMIT,
-    offset,
-    sortBy: sortBy.value,
-  })
 
-  if (result) {
-    if (reset) {
-      schemes.value = result.schemes
-    } else {
-      schemes.value = [...schemes.value, ...result.schemes]
+  try {
+    const result = await client.query(api.schemes.listPublicSchemes, {
+      limit: LIMIT,
+      offset,
+      sortBy: sortBy.value,
+    })
+
+    if (result) {
+      if (reset) {
+        schemes.value = result.schemes
+      } else {
+        schemes.value = [...schemes.value, ...result.schemes]
+      }
+      hasMore.value = result.hasMore
     }
-    hasMore.value = result.hasMore
+  } catch (e) {
+    console.error('Failed to load public schemes', e)
+    error.value = 'Something went wrong while loading schemes. Please try again.'
+  } finally {
+    isLoading.value = false
+    isLoadingMore.value = false
   }
-
-  isLoading.value = false
-  isLoadingMore.value = false
 }
 
 onMounted(() => load(true))
@@ -119,6 +128,16 @@ async function clone(schemeId: string) {
     </div>
 
     <div v-if="isLoading" class="text-center py-16 text-gray-400">Loading…</div>
+
+    <div v-else-if="error" class="text-center py-16">
+      <p class="text-gray-500">{{ error }}</p>
+      <button
+        @click="load(true)"
+        class="mt-4 inline-block text-sm text-gray-700 border border-gray-200 rounded-lg px-4 py-2 hover:bg-gray-50 transition-colors"
+      >
+        Try again
+      </button>
+    </div>
 
     <div v-else-if="filteredSchemes.length === 0" class="text-center py-16">
       <p class="text-gray-500">No public schemes found.</p>
