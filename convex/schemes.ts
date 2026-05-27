@@ -213,17 +213,19 @@ export const setPublic = mutation({
 export const listPublicSchemes = query({
   args: {
     limit: v.optional(v.number()),
+    offset: v.optional(v.number()),
+    sortBy: v.optional(v.union(v.literal('recent'), v.literal('popular'))),
   },
   handler: async (ctx, args) => {
-    const limit = args.limit ?? 50
+    const limit = args.limit ?? 24
+    const offset = args.offset ?? 0
+    const sortBy = args.sortBy ?? 'recent'
 
     const allSchemes = await ctx.db.query('schemes').collect()
-    const publicSchemes = allSchemes
-      .filter(s => s.isPublic === true && s.slug)
-      .sort((a, b) => b._creationTime - a._creationTime)
-      .slice(0, limit)
+    const publicSchemes = allSchemes.filter(s => s.isPublic === true && s.slug)
 
-    const result = await Promise.all(
+    // Enrich with step data
+    const enriched = await Promise.all(
       publicSchemes.map(async (scheme) => {
         const steps = await ctx.db
           .query('schemeSteps')
@@ -233,7 +235,10 @@ export const listPublicSchemes = query({
         const sortedSteps = steps.sort((a, b) => a.sortOrder - b.sortOrder)
 
         const swatches: string[] = []
+        const techniques = new Set<string>()
+
         for (const step of sortedSteps) {
+          techniques.add(step.technique)
           if (step.paintId && swatches.length < 5) {
             const paint = await ctx.db.get(step.paintId)
             if (paint) swatches.push(paint.hexColor)
@@ -244,11 +249,22 @@ export const listPublicSchemes = query({
           ...scheme,
           stepCount: steps.length,
           swatches,
+          techniques: Array.from(techniques),
         }
       }),
     )
 
-    return result
+    // Sort
+    const sorted = enriched.sort((a, b) => {
+      if (sortBy === 'popular') return b.stepCount - a.stepCount
+      return b._creationTime - a._creationTime
+    })
+
+    // Paginate
+    const page = sorted.slice(offset, offset + limit)
+    const hasMore = sorted.length > offset + limit
+
+    return { schemes: page, hasMore, total: sorted.length }
   },
 })
 
