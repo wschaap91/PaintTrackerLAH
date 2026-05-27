@@ -59,6 +59,7 @@ Nuxt 4 SPA frontend communicates with Convex Cloud exclusively through a single 
 { brand: string, range: string, rangeCode: string, name: string,
   brandCode: string, hexColor: string | null, paintType: string,
   finish: string, transparency: string,
+  specialType?: string | null, barcode?: string | null,
   openMiniPaintsId?: string, syncedAt?: number }
 // indexes: by_brand, by_range, by_brand_code, by_open_mini_paints_id
 // searchIndex: search_name (searchField: name, filterFields: [brand])

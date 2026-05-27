@@ -76,6 +76,8 @@ export default defineSchema({
     // every OpenMiniPaints-synced entry. Convex cannot enforce uniqueness at the
     // DB level, so the sync action (T2) MUST query this index before inserting
     // to prevent silent duplicates.
+    specialType: v.optional(v.union(v.string(), v.null())),
+    barcode: v.optional(v.union(v.string(), v.null())),
     openMiniPaintsId: v.optional(v.string()),
     syncedAt: v.optional(v.number()),
   })
