@@ -16,8 +16,9 @@ export default defineNuxtPlugin(() => {
     client.setAuth(
       async () => localStorage.getItem('convex_auth_token'),
       () => {
-        // Token invalidated — clear storage
+        // Token invalidated — clear storage and reactive auth state
         localStorage.removeItem('convex_auth_token')
+        useState<boolean>('auth:isAuthenticated').value = false
       }
     )
   }
@@ -29,6 +30,7 @@ export default defineNuxtPlugin(() => {
         async () => localStorage.getItem('convex_auth_token'),
         () => {
           localStorage.removeItem('convex_auth_token')
+          useState<boolean>('auth:isAuthenticated').value = false
         }
       )
     } else {
