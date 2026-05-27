@@ -28,10 +28,10 @@ export function useAuth() {
       const result = await $convex.action(api.auth.signIn, {
         provider: 'password',
         params: { email, password, flow: 'signIn' },
-      }) as { tokens?: { token: string } }
+      }) as { tokens?: { token: string; refreshToken?: string } }
 
       if (result?.tokens?.token) {
-        $convexSetAuth(result.tokens.token)
+        $convexSetAuth(result.tokens.token, result.tokens.refreshToken)
         isAuthenticated.value = true
         try {
           const payload = JSON.parse(atob(result.tokens.token.split('.')[1]))
@@ -57,10 +57,10 @@ export function useAuth() {
       const result = await $convex.action(api.auth.signIn, {
         provider: 'password',
         params: { email, password, flow: 'signUp' },
-      }) as { tokens?: { token: string } }
+      }) as { tokens?: { token: string; refreshToken?: string } }
 
       if (result?.tokens?.token) {
-        $convexSetAuth(result.tokens.token)
+        $convexSetAuth(result.tokens.token, result.tokens.refreshToken)
         isAuthenticated.value = true
         currentUserEmail.value = email
       } else {
