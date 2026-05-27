@@ -1,16 +1,24 @@
 <script setup lang="ts">
 const route = useRoute()
+const { isAuthenticated, currentUserEmail, signOut } = useAuth()
+const router = useRouter()
 
 const navItems = [
   { label: 'Dashboard', to: '/' },
   { label: 'Paints', to: '/paints' },
   { label: 'Schemes', to: '/schemes' },
   { label: 'Projects', to: '/projects' },
+  { label: 'Discover', to: '/discover' },
 ]
 
 function isActive(to: string): boolean {
   if (to === '/') return route.path === '/'
   return route.path.startsWith(to)
+}
+
+async function handleSignOut() {
+  await signOut()
+  await router.push('/auth/login')
 }
 </script>
 
@@ -35,6 +43,15 @@ function isActive(to: string): boolean {
               {{ item.label }}
             </NuxtLink>
           </nav>
+        </div>
+        <div v-if="isAuthenticated" class="flex items-center gap-3">
+          <span class="text-sm text-gray-500">{{ currentUserEmail }}</span>
+          <button
+            @click="handleSignOut"
+            class="text-sm text-gray-700 hover:text-gray-900 border border-gray-200 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors"
+          >
+            Sign out
+          </button>
         </div>
       </div>
     </div>

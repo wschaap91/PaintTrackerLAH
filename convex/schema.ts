@@ -1,8 +1,11 @@
 import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
+import { authTables } from '@convex-dev/auth/server'
 
 export default defineSchema({
+  ...authTables,
   paints: defineTable({
+    userId: v.optional(v.string()),
     brand: v.string(),
     name: v.string(),
     paintType: v.string(),
@@ -19,12 +22,16 @@ export default defineSchema({
     .index('by_status', ['status'])
     .index('by_type', ['paintType'])
     .index('by_brand_code', ['brandCode'])
-    .index('by_barcode', ['barcode']),
+    .index('by_barcode', ['barcode'])
+    .index('by_user', ['userId']),
 
   schemes: defineTable({
+    userId: v.optional(v.string()),
     name: v.string(),
     description: v.union(v.string(), v.null()),
-  }),
+    isPublic: v.optional(v.boolean()),
+    slug: v.optional(v.string()),
+  }).index('by_user', ['userId']).index('by_slug', ['slug']),
 
   schemeSteps: defineTable({
     schemeId: v.id('schemes'),
@@ -35,9 +42,10 @@ export default defineSchema({
   }).index('by_scheme', ['schemeId']),
 
   projects: defineTable({
+    userId: v.optional(v.string()),
     name: v.string(),
     description: v.union(v.string(), v.null()),
-  }),
+  }).index('by_user', ['userId']),
 
   projectSchemes: defineTable({
     projectId: v.id('projects'),

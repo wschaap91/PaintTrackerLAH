@@ -9,7 +9,13 @@ export const list = query({
     q: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    let paints = await ctx.db.query('paints').collect()
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return []
+
+    let paints = await ctx.db
+      .query('paints')
+      .withIndex('by_user', q => q.eq('userId', identity.subject))
+      .collect()
 
     if (args.brand) paints = paints.filter(p => p.brand === args.brand)
     if (args.paintType) paints = paints.filter(p => p.paintType === args.paintType)
@@ -33,7 +39,11 @@ export const list = query({
 export const get = query({
   args: { id: v.id('paints') },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id)
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return null
+    const paint = await ctx.db.get(args.id)
+    if (!paint || paint.userId !== identity.subject) return null
+    return paint
   },
 })
 
@@ -52,7 +62,9 @@ export const create = mutation({
     brandCode: v.union(v.string(), v.null()),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert('paints', args)
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Unauthenticated')
+    return await ctx.db.insert('paints', { ...args, userId: identity.subject })
   },
 })
 
@@ -72,7 +84,11 @@ export const update = mutation({
     brandCode: v.optional(v.union(v.string(), v.null())),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Unauthenticated')
     const { id, ...updates } = args
+    const paint = await ctx.db.get(id)
+    if (!paint || paint.userId !== identity.subject) throw new Error('Not found or forbidden')
     await ctx.db.patch(id, updates)
   },
 })
@@ -80,7 +96,65 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id('paints') },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Unauthenticated')
+    const paint = await ctx.db.get(args.id)
+    if (!paint || paint.userId !== identity.subject) throw new Error('Not found or forbidden')
     await ctx.db.delete(args.id)
+  },
+})
+
+export const bulkCreate = mutation({
+  args: {
+    paints: v.array(v.object({
+      brand: v.string(),
+      name: v.string(),
+      paintType: v.string(),
+      hexColor: v.string(),
+      status: v.string(),
+      notes: v.union(v.string(), v.null()),
+      transparency: v.union(v.string(), v.null()),
+      finish: v.union(v.string(), v.null()),
+      specialType: v.union(v.string(), v.null()),
+      barcode: v.union(v.string(), v.null()),
+      brandCode: v.union(v.string(), v.null()),
+    })),
+    onDuplicate: v.union(v.literal('skip'), v.literal('update')),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Unauthenticated')
+
+    const existingPaints = await ctx.db
+      .query('paints')
+      .withIndex('by_user', q => q.eq('userId', identity.subject))
+      .collect()
+
+    // Build a brand+name lookup map
+    const existingMap = new Map(
+      existingPaints.map(p => [`${p.brand.toLowerCase()}|${p.name.toLowerCase()}`, p])
+    )
+
+    let added = 0, skipped = 0, updated = 0
+
+    for (const paint of args.paints) {
+      const key = `${paint.brand.toLowerCase()}|${paint.name.toLowerCase()}`
+      const existingPaint = existingMap.get(key)
+
+      if (existingPaint) {
+        if (args.onDuplicate === 'update') {
+          await ctx.db.patch(existingPaint._id, paint)
+          updated++
+        } else {
+          skipped++
+        }
+      } else {
+        await ctx.db.insert('paints', { ...paint, userId: identity.subject })
+        added++
+      }
+    }
+
+    return { added, skipped, updated }
   },
 })
 
@@ -90,14 +164,23 @@ export const lookup = query({
     barcode: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return null
+
     if (args.code) {
       const normalized = args.code.trim().toLowerCase()
-      const all = await ctx.db.query('paints').collect()
+      const all = await ctx.db
+        .query('paints')
+        .withIndex('by_user', q => q.eq('userId', identity.subject))
+        .collect()
       const match = all.find(p => p.brandCode?.toLowerCase() === normalized)
       if (match) return match
     }
     if (args.barcode) {
-      const all = await ctx.db.query('paints').collect()
+      const all = await ctx.db
+        .query('paints')
+        .withIndex('by_user', q => q.eq('userId', identity.subject))
+        .collect()
       const match = all.find(p => p.barcode === args.barcode!.trim())
       if (match) return match
     }

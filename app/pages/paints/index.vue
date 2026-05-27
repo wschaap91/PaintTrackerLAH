@@ -8,6 +8,7 @@ const filters = ref({
 
 const { paints, isLoading } = usePaints(filters)
 const showQuickAdd = ref(false)
+const showImportExport = ref(false)
 </script>
 
 <template>
@@ -22,6 +23,12 @@ const showQuickAdd = ref(false)
       <div class="flex gap-2">
         <button
           class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          @click="showImportExport = !showImportExport"
+        >
+          Import/Export
+        </button>
+        <button
+          class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
           @click="showQuickAdd = true"
         >
           Quick Add
@@ -33,6 +40,10 @@ const showQuickAdd = ref(false)
           + Add Paint
         </NuxtLink>
       </div>
+    </div>
+
+    <div v-if="showImportExport" class="mb-6">
+      <PaintImportExport :paints="paints ?? []" />
     </div>
 
     <PaintFilters v-model="filters" />
