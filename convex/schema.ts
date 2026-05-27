@@ -17,6 +17,7 @@ export default defineSchema({
     specialType: v.union(v.string(), v.null()),
     barcode: v.union(v.string(), v.null()),
     brandCode: v.union(v.string(), v.null()),
+    catalogPaintId: v.optional(v.id('catalogPaints')),
   })
     .index('by_brand', ['brand'])
     .index('by_status', ['status'])
@@ -60,4 +61,23 @@ export default defineSchema({
   })
     .index('by_project', ['projectId'])
     .index('by_paint', ['paintId']),
+
+  catalogPaints: defineTable({
+    brand: v.string(),
+    range: v.string(),
+    rangeCode: v.string(),
+    name: v.string(),
+    brandCode: v.string(),
+    hexColor: v.union(v.string(), v.null()),
+    paintType: v.string(),
+    finish: v.string(),
+    transparency: v.string(),
+    openMiniPaintsId: v.optional(v.string()),
+    syncedAt: v.optional(v.number()),
+  })
+    .index('by_brand', ['brand'])
+    .index('by_range', ['range'])
+    .index('by_brand_code', ['brandCode'])
+    .index('by_open_mini_paints_id', ['openMiniPaintsId'])
+    .searchIndex('search_name', { searchField: 'name', filterFields: ['brand'] }),
 })
