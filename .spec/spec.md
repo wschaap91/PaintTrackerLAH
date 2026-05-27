@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-27 (after PRD v3 cycle, PR #15 refresh token flow)
+Last updated: 2026-05-27 (after PRD v5 cycle, Wave 2 — catalogSync.ts + paints.catalogPaintId)
 
 ## Architecture
 
@@ -29,7 +29,7 @@ Nuxt 4 SPA frontend communicates with Convex Cloud exclusively through a single 
 // paints — user-owned paint inventory
 { userId: string, name: string, brand: string, hexColor: string,
   paintType?: string, status?: string, barcode?: string,
-  notes?: string, quantity?: number }
+  notes?: string, quantity?: number, catalogPaintId?: Id<"catalogPaints"> }
 // indexes: by_user, by_brand, by_barcode
 
 // schemes — painting recipes
@@ -54,6 +54,14 @@ Nuxt 4 SPA frontend communicates with Convex Cloud exclusively through a single 
 { projectId: Id<"projects">, paintId: Id<"paints">,
   quantityNeeded?: number, quantityUsed?: number }
 // indexes: by_project
+
+// catalogPaints — read-only paint catalog (synced from OpenMiniPaints API)
+{ brand: string, range: string, rangeCode: string, name: string,
+  brandCode: string, hexColor: string | null, paintType: string,
+  finish: string, transparency: string,
+  openMiniPaintsId?: string, syncedAt?: number }
+// indexes: by_brand, by_range, by_brand_code, by_open_mini_paints_id
+// searchIndex: search_name (searchField: name, filterFields: [brand])
 ```
 
 Auth tables provided by `@convex-dev/auth` (ADR-003).
@@ -63,7 +71,7 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 **paints.ts** (all authenticated)
 - `list({})` → `Paint[]`
 - `get({ id })` → `Paint | null`
-- `create({ name, brand, hexColor, paintType?, status?, barcode?, notes?, quantity? })` → `Id<"paints">`
+- `create({ name, brand, hexColor, paintType?, status?, barcode?, notes?, quantity?, catalogPaintId? })` → `Id<"paints">`
 - `update({ id, ...fields })` → `void`
 - `remove({ id })` → `void`
 - `bulkCreate({ paints[] })` → `{ created, skipped }` — dedupes by name+brand
@@ -79,6 +87,12 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 **projects.ts** (all authenticated)
 - `list({})`, `get({ id })`, `create(...)`, `update(...)`, `remove({ id })`
 - `addScheme / removeScheme`, `addPaint / removePaint / updatePaint`
+
+**catalogSync.ts** (authenticated unless noted)
+- `searchCatalog({ q, brand?, limit? })` → `CatalogPaint[]` — auth required; uses `search_name` searchIndex; limit clamped 1–25 (default 10)
+- `getCatalogPaint({ id })` → `CatalogPaint | null` — auth required
+- `internal.upsertCatalogPaint(...)` — internalMutation; upserts by `openMiniPaintsId`, fallback brand+brandCode for pre-sync rows; always sets `syncedAt`
+- `internal.syncCatalog({})` — internalAction; cursor-paged HTTP fetch from OpenMiniPaints API; scheduled nightly via `crons.ts`; returns `{ synced, errors }`
 
 **http.ts** — HTTP action routes for Convex Auth callbacks
 
@@ -117,7 +131,7 @@ app/
   utils/          known-paints.ts  (~150 static paint entries)
 convex/
   schema.ts, auth.ts, auth.config.js, http.ts
-  paints.ts, schemes.ts, projects.ts, migrations.ts
+  paints.ts, schemes.ts, projects.ts, migrations.ts, catalogSync.ts
   _generated/     (auto-generated — do not edit)
 ```
 
