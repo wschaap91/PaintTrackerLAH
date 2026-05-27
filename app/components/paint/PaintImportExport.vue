@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const props = defineProps<{ paints: any[] }>()
-const { exportJson, exportCsv, parseFile, importPaints } = useImportExport()
+const { exportJson, exportCsv, parseFile, parseFileRaw, applyColumnMapping, importPaints } = useImportExport()
 
 const fileInput = ref<HTMLInputElement | null>(null)
 const parsedRows = ref<any[]>([])
@@ -10,14 +10,27 @@ const importResult = ref<{ added: number, skipped: number, updated: number } | n
 const isImporting = ref(false)
 const isParsing = ref(false)
 const selectedFile = ref<File | null>(null)
-const detectedColumns = ref<string[] | undefined>(undefined)
 
-const STANDARD_COLUMNS = ['brand', 'name', 'paintType', 'hexColor', 'status', 'notes', 'transparency', 'finish', 'specialType', 'barcode', 'brandCode']
+const KNOWN_FIELDS = [
+  { key: 'brand', label: 'Brand', required: true },
+  { key: 'name', label: 'Name', required: true },
+  { key: 'paintType', label: 'Paint Type', required: false },
+  { key: 'hexColor', label: 'Hex Color', required: false },
+  { key: 'status', label: 'Status', required: false },
+  { key: 'notes', label: 'Notes', required: false },
+  { key: 'transparency', label: 'Transparency', required: false },
+  { key: 'finish', label: 'Finish', required: false },
+  { key: 'specialType', label: 'Special Type', required: false },
+  { key: 'barcode', label: 'Barcode', required: false },
+  { key: 'brandCode', label: 'Brand Code', required: false },
+]
 
-const hasNonStandardColumns = computed(() => {
-  if (!detectedColumns.value) return false
-  return detectedColumns.value.some(col => !STANDARD_COLUMNS.includes(col))
-})
+const STANDARD_HEADERS = new Set(KNOWN_FIELDS.map(f => f.key))
+
+const csvHeaders = ref<string[]>([])
+const rawRows = ref<Record<string, string>[]>([])
+const columnMapping = ref<Record<string, string>>({})
+const showColumnMapper = ref(false)
 
 async function handleFileChange(e: Event) {
   const file = (e.target as HTMLInputElement).files?.[0]
@@ -25,11 +38,50 @@ async function handleFileChange(e: Event) {
   selectedFile.value = file
   isParsing.value = true
   importResult.value = null
+  parsedRows.value = []
+  parseErrors.value = []
+  showColumnMapper.value = false
+
+  if (file.name.endsWith('.csv')) {
+    const raw = await parseFileRaw(file)
+    if (raw) {
+      csvHeaders.value = raw.headers
+      rawRows.value = raw.rows
+      // Check if all headers are standard
+      const allStandard = raw.headers.every(h => STANDARD_HEADERS.has(h))
+      if (!allStandard) {
+        // Pre-populate mapping with exact matches
+        const mapping: Record<string, string> = {}
+        for (const field of KNOWN_FIELDS) {
+          const match = raw.headers.find(h => h === field.key)
+          mapping[field.key] = match ?? ''
+        }
+        columnMapping.value = mapping
+        showColumnMapper.value = true
+        isParsing.value = false
+        return
+      }
+    }
+  }
+
+  // Standard file or JSON → parse directly
   const result = await parseFile(file)
   parsedRows.value = result.rows
   parseErrors.value = result.errors
-  detectedColumns.value = result.detectedColumns
   isParsing.value = false
+}
+
+async function applyMapping() {
+  // Apply column mapping to raw rows, then validate with Zod
+  const remapped = applyColumnMapping(rawRows.value, columnMapping.value)
+  const result = await parseFile(new File(
+    [JSON.stringify(remapped)],
+    'mapped.json',
+    { type: 'application/json' }
+  ))
+  parsedRows.value = result.rows
+  parseErrors.value = result.errors
+  showColumnMapper.value = false
 }
 
 async function handleImport() {
@@ -40,7 +92,6 @@ async function handleImport() {
     importResult.value = result
     parsedRows.value = []
     parseErrors.value = []
-    detectedColumns.value = undefined
     selectedFile.value = null
     if (fileInput.value) fileInput.value.value = ''
   } catch (e) {
@@ -94,15 +145,38 @@ async function handleImport() {
         {{ selectedFile ? selectedFile.name : 'Choose file…' }}
       </button>
 
-      <!-- Column info for CSV files -->
-      <div v-if="detectedColumns" class="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600">
-        <p class="font-medium mb-1">Detected columns: <span class="font-normal">{{ detectedColumns.join(', ') }}</span></p>
-        <p v-if="hasNonStandardColumns" class="text-amber-600">
-          Some columns are non-standard and will be ignored. Supported columns: {{ STANDARD_COLUMNS.join(', ') }}
-        </p>
-      </div>
-
       <div v-if="isParsing" class="mt-2 text-xs text-gray-400">Parsing…</div>
+
+      <!-- Column mapping UI for non-standard CSV headers -->
+      <div v-if="showColumnMapper" class="mt-3 space-y-2">
+        <p class="text-xs font-medium text-gray-700">Map CSV columns to paint fields:</p>
+        <p class="text-xs text-gray-500">Your CSV has non-standard column names. Map them below.</p>
+        <div class="space-y-1.5 max-h-48 overflow-y-auto">
+          <div
+            v-for="field in KNOWN_FIELDS"
+            :key="field.key"
+            class="flex items-center gap-2"
+          >
+            <span class="text-xs text-gray-700 w-24 flex-shrink-0">
+              {{ field.label }}<span v-if="field.required" class="text-red-500">*</span>
+            </span>
+            <select
+              v-model="columnMapping[field.key]"
+              class="flex-1 text-xs border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none"
+            >
+              <option value="">— not mapped —</option>
+              <option v-for="h in csvHeaders" :key="h" :value="h">{{ h }}</option>
+            </select>
+          </div>
+        </div>
+        <button
+          @click="applyMapping"
+          :disabled="!columnMapping['brand'] || !columnMapping['name']"
+          class="w-full text-xs bg-gray-900 text-white rounded px-4 py-2 hover:bg-gray-700 disabled:opacity-50 transition-colors mt-2"
+        >
+          Apply mapping
+        </button>
+      </div>
 
       <div v-if="parsedRows.length > 0" class="mt-3 space-y-2">
         <p class="text-xs text-gray-700">

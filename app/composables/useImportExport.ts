@@ -120,10 +120,40 @@ export function useImportExport() {
     return { rows, errors, detectedColumns }
   }
 
+  // Parse a CSV file into raw rows without Zod validation
+  async function parseFileRaw(file: File): Promise<{ headers: string[], rows: Record<string, string>[] } | null> {
+    if (!file.name.endsWith('.csv')) return null
+    const text = await file.text()
+    const lines = text.split('\n').filter(l => l.trim())
+    if (lines.length < 2) return null
+    const headers = lines[0]!.split(',').map(h => h.trim().replace(/^"|"$/g, ''))
+    const rows = lines.slice(1).map(line => {
+      const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''))
+      return Object.fromEntries(headers.map((h, i) => [h, values[i] ?? '']))
+    })
+    return { headers, rows }
+  }
+
+  // Re-key raw rows according to a mapping { targetField: csvHeader }
+  function applyColumnMapping(
+    rawRows: Record<string, string>[],
+    mapping: Record<string, string>
+  ): Record<string, string>[] {
+    return rawRows.map(row => {
+      const mapped: Record<string, string> = {}
+      for (const [field, header] of Object.entries(mapping)) {
+        if (header && row[header] !== undefined) {
+          mapped[field] = row[header]!
+        }
+      }
+      return mapped
+    })
+  }
+
   // Run bulk import
   async function importPaints(rows: PaintRow[], onDuplicate: 'skip' | 'update') {
     return await client.mutation(api.paints.bulkCreate, { paints: rows, onDuplicate })
   }
 
-  return { exportJson, exportCsv, parseFile, importPaints }
+  return { exportJson, exportCsv, parseFile, parseFileRaw, applyColumnMapping, importPaints }
 }
