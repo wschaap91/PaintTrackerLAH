@@ -5,7 +5,7 @@ import { authTables } from '@convex-dev/auth/server'
 export default defineSchema({
   ...authTables,
   paints: defineTable({
-    userId: v.string(),
+    userId: v.optional(v.string()),
     brand: v.string(),
     name: v.string(),
     paintType: v.string(),
@@ -26,7 +26,7 @@ export default defineSchema({
     .index('by_user', ['userId']),
 
   schemes: defineTable({
-    userId: v.string(),
+    userId: v.optional(v.string()),
     name: v.string(),
     description: v.union(v.string(), v.null()),
     isPublic: v.optional(v.boolean()),
@@ -42,7 +42,7 @@ export default defineSchema({
   }).index('by_scheme', ['schemeId']),
 
   projects: defineTable({
-    userId: v.string(),
+    userId: v.optional(v.string()),
     name: v.string(),
     description: v.union(v.string(), v.null()),
   }).index('by_user', ['userId']),
