@@ -11,15 +11,25 @@ export default defineNuxtPlugin(() => {
 
   const client = new ConvexClient(convexUrl)
 
+  // Shared onChange handler: Convex calls this with `true` when the server
+  // confirms the token is valid, and `false` when it's been rejected/expired.
+  // We must respect the boolean — previously this always cleared auth, which
+  // caused logout on every page navigation (the server confirms the cached
+  // token asynchronously, triggering the callback after the middleware had
+  // already set isAuthenticated = true).
+  function onAuthChange(isAuth: boolean) {
+    if (!isAuth) {
+      localStorage.removeItem('convex_auth_token')
+      useState<boolean>('auth:isAuthenticated').value = false
+    }
+    // isAuth === true: server confirmed the token is still valid — no change needed.
+  }
+
   // Restore token from previous session
   if (localStorage.getItem('convex_auth_token')) {
     client.setAuth(
       async () => localStorage.getItem('convex_auth_token'),
-      () => {
-        // Token invalidated — clear storage and reactive auth state
-        localStorage.removeItem('convex_auth_token')
-        useState<boolean>('auth:isAuthenticated').value = false
-      }
+      onAuthChange,
     )
   }
 
@@ -28,10 +38,7 @@ export default defineNuxtPlugin(() => {
       localStorage.setItem('convex_auth_token', token)
       client.setAuth(
         async () => localStorage.getItem('convex_auth_token'),
-        () => {
-          localStorage.removeItem('convex_auth_token')
-          useState<boolean>('auth:isAuthenticated').value = false
-        }
+        onAuthChange,
       )
     } else {
       localStorage.removeItem('convex_auth_token')
