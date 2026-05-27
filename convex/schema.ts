@@ -29,7 +29,9 @@ export default defineSchema({
     userId: v.string(),
     name: v.string(),
     description: v.union(v.string(), v.null()),
-  }).index('by_user', ['userId']),
+    isPublic: v.optional(v.boolean()),
+    slug: v.optional(v.string()),
+  }).index('by_user', ['userId']).index('by_slug', ['slug']),
 
   schemeSteps: defineTable({
     schemeId: v.id('schemes'),

@@ -6,10 +6,24 @@ const router = useRouter()
 const id = route.params.id as Id<'schemes'>
 
 const { data: scheme } = useScheme(id)
-const { update, remove } = useSchemeMutations()
+const { update, remove, setPublic } = useSchemeMutations()
 const isEditing = ref(false)
 const error = ref('')
 const showDeleteConfirm = ref(false)
+const copied = ref(false)
+const origin = import.meta.client ? window.location.origin : ''
+
+async function togglePublic() {
+  if (!scheme.value) return
+  await setPublic({ id, isPublic: !scheme.value.isPublic })
+}
+
+async function copyLink() {
+  const url = `${window.location.origin}/s/${scheme.value?.slug}`
+  await navigator.clipboard.writeText(url)
+  copied.value = true
+  setTimeout(() => { copied.value = false }, 2000)
+}
 
 function formatTechnique(t: string): string {
   return t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
@@ -102,6 +116,40 @@ async function handleDelete() {
             </div>
           </li>
         </ol>
+        <!-- Sharing section -->
+        <div class="mt-6 bg-white rounded-lg border border-gray-200 p-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-medium text-gray-900">Public sharing</h3>
+              <p class="text-xs text-gray-500 mt-0.5">Make this scheme visible to anyone with the link</p>
+            </div>
+            <button
+              :class="scheme.isPublic
+                ? 'bg-gray-900 text-white'
+                : 'bg-gray-100 text-gray-700'"
+              class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none"
+              @click="togglePublic"
+            >
+              <span
+                :class="scheme.isPublic ? 'translate-x-6' : 'translate-x-1'"
+                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow"
+              />
+            </button>
+          </div>
+          <div v-if="scheme.isPublic && scheme.slug" class="mt-3 flex items-center gap-2">
+            <input
+              :value="`${origin}/s/${scheme.slug}`"
+              readonly
+              class="flex-1 text-xs border border-gray-200 rounded px-2 py-1.5 bg-gray-50 text-gray-600"
+            />
+            <button
+              class="text-xs text-gray-700 border border-gray-200 rounded px-2 py-1.5 hover:bg-gray-50"
+              @click="copyLink"
+            >
+              {{ copied ? 'Copied!' : 'Copy' }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <div v-else>

@@ -16,5 +16,6 @@ export function useSchemeMutations() {
     create: useConvexMutation(api.schemes.create),
     update: useConvexMutation(api.schemes.update),
     remove: useConvexMutation(api.schemes.remove),
+    setPublic: useConvexMutation(api.schemes.setPublic),
   }
 }

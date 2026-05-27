@@ -146,6 +146,66 @@ export const update = mutation({
   },
 })
 
+export const getPublicScheme = query({
+  args: { slug: v.string() },
+  handler: async (ctx, args) => {
+    const scheme = await ctx.db
+      .query('schemes')
+      .withIndex('by_slug', q => q.eq('slug', args.slug))
+      .first()
+
+    if (!scheme || !scheme.isPublic) return null
+
+    const steps = await ctx.db
+      .query('schemeSteps')
+      .withIndex('by_scheme', q => q.eq('schemeId', scheme._id))
+      .collect()
+
+    const sortedSteps = steps.sort((a, b) => a.sortOrder - b.sortOrder)
+
+    const stepsWithPaints = await Promise.all(
+      sortedSteps.map(async (step) => {
+        const paint = step.paintId ? await ctx.db.get(step.paintId) : null
+        return { ...step, paint }
+      }),
+    )
+
+    return {
+      ...scheme,
+      steps: stepsWithPaints,
+      authorName: 'A PaintTracker user',
+    }
+  },
+})
+
+export const setPublic = mutation({
+  args: {
+    id: v.id('schemes'),
+    isPublic: v.boolean(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Unauthenticated')
+
+    const scheme = await ctx.db.get(args.id)
+    if (!scheme || scheme.userId !== identity.subject) throw new Error('Not found or forbidden')
+
+    let slug = scheme.slug
+    if (args.isPublic && !slug) {
+      const base = scheme.name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '')
+        .slice(0, 40)
+      const { nanoid } = await import('nanoid')
+      slug = `${base}-${nanoid(6)}`
+    }
+
+    await ctx.db.patch(args.id, { isPublic: args.isPublic, slug })
+    return slug
+  },
+})
+
 export const remove = mutation({
   args: { id: v.id('schemes') },
   handler: async (ctx, args) => {
