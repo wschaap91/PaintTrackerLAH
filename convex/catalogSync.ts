@@ -1,0 +1,204 @@
+import { internalMutation, internalAction, query } from './_generated/server'
+import { internal } from './_generated/api'
+import { v } from 'convex/values'
+
+// Convex actions run in a custom environment without @types/node;
+// declare process.env so TypeScript accepts it (available at runtime via Convex deployment env vars).
+declare const process: { env: Record<string, string | undefined> }
+
+// ---------------------------------------------------------------------------
+// OpenMiniPaints API response shape
+// ---------------------------------------------------------------------------
+
+interface OpenMiniPaintsEntry {
+  id: string
+  brand: string
+  range: string
+  range_code: string
+  name: string
+  brand_code: string
+  hex_color: string | null
+  type: string
+  finish: string
+  transparency: string
+  special_type?: string | null
+  barcode?: string | null
+}
+
+interface OpenMiniPaintsPage {
+  data: OpenMiniPaintsEntry[]
+  next_cursor: string | null
+}
+
+// ---------------------------------------------------------------------------
+// upsertCatalogPaint — internalMutation
+// ---------------------------------------------------------------------------
+
+export const upsertCatalogPaint = internalMutation({
+  args: {
+    openMiniPaintsId: v.string(),
+    brand: v.string(),
+    range: v.string(),
+    rangeCode: v.string(),
+    name: v.string(),
+    brandCode: v.string(),
+    hexColor: v.union(v.string(), v.null()),
+    paintType: v.string(),
+    finish: v.string(),
+    transparency: v.string(),
+    specialType: v.optional(v.union(v.string(), v.null())),
+    barcode: v.optional(v.union(v.string(), v.null())),
+  },
+  handler: async (ctx, args) => {
+    const { openMiniPaintsId, ...fields } = args
+
+    // Try to find existing row by openMiniPaintsId first
+    const byId = await ctx.db
+      .query('catalogPaints')
+      .withIndex('by_open_mini_paints_id', q => q.eq('openMiniPaintsId', openMiniPaintsId))
+      .first()
+
+    if (byId) {
+      await ctx.db.patch(byId._id, { openMiniPaintsId, ...fields, syncedAt: Date.now() })
+      return
+    }
+
+    // Fallback: find by brand + brandCode (pre-sync seeded row without openMiniPaintsId)
+    const byBrandCode = await ctx.db
+      .query('catalogPaints')
+      .withIndex('by_brand_code', q => q.eq('brandCode', fields.brandCode))
+      .collect()
+
+    const match = byBrandCode.find(row => row.brand === fields.brand)
+
+    if (match) {
+      // Backfill openMiniPaintsId and update all fields
+      await ctx.db.patch(match._id, { openMiniPaintsId, ...fields, syncedAt: Date.now() })
+      return
+    }
+
+    // No existing row — insert new
+    await ctx.db.insert('catalogPaints', {
+      openMiniPaintsId,
+      ...fields,
+      syncedAt: Date.now(),
+    })
+  },
+})
+
+// ---------------------------------------------------------------------------
+// searchCatalog — public query (auth required)
+// ---------------------------------------------------------------------------
+
+export const searchCatalog = query({
+  args: {
+    q: v.string(),
+    brand: v.optional(v.string()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return []
+
+    const rawLimit = args.limit ?? 10
+    const limit = Math.max(1, Math.min(25, rawLimit))
+
+    const results = await ctx.db
+      .query('catalogPaints')
+      .withSearchIndex('search_name', q => {
+        const withText = q.search('name', args.q)
+        return args.brand ? withText.eq('brand', args.brand) : withText
+      })
+      .take(limit)
+
+    return results
+  },
+})
+
+// ---------------------------------------------------------------------------
+// getCatalogPaint — public query (auth required)
+// ---------------------------------------------------------------------------
+
+export const getCatalogPaint = query({
+  args: { id: v.id('catalogPaints') },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return null
+
+    const doc = await ctx.db.get(args.id)
+    return doc ?? null
+  },
+})
+
+// ---------------------------------------------------------------------------
+// syncCatalog — internalAction
+// ---------------------------------------------------------------------------
+
+export const syncCatalog = internalAction({
+  args: {},
+  handler: async (ctx): Promise<{ synced: number; errors: number }> => {
+    const apiKey = process.env.OPEN_MINI_PAINTS_API_KEY
+    const siteUrl = process.env.OPEN_MINI_PAINTS_SITE_URL
+
+    if (!apiKey || !siteUrl) {
+      return { synced: 0, errors: 1 }
+    }
+
+    let synced = 0
+    let errors = 0
+
+    try {
+      let cursor: string | null = null
+
+      do {
+        const url = new URL(`${siteUrl}/api/paints`)
+        if (cursor) url.searchParams.set('cursor', cursor)
+
+        const response = await fetch(url.toString(), {
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+        })
+
+        if (!response.ok) {
+          console.error(`syncCatalog: HTTP error ${response.status} from ${url.toString()}`)
+          errors++
+          break
+        }
+
+        const page = (await response.json()) as OpenMiniPaintsPage
+
+        for (const entry of page.data) {
+          try {
+            await ctx.runMutation(internal.catalogSync.upsertCatalogPaint, {
+              openMiniPaintsId: entry.id,
+              brand: entry.brand,
+              range: entry.range,
+              rangeCode: entry.range_code,
+              name: entry.name,
+              brandCode: entry.brand_code,
+              hexColor: entry.hex_color ?? null,
+              paintType: entry.type,
+              finish: entry.finish,
+              transparency: entry.transparency,
+              specialType: entry.special_type ?? null,
+              barcode: entry.barcode ?? null,
+            })
+            synced++
+          } catch (err) {
+            console.error(`syncCatalog: failed to upsert entry ${entry.id}:`, err)
+            errors++
+          }
+        }
+
+        cursor = page.next_cursor
+      } while (cursor !== null)
+    } catch (err) {
+      console.error('syncCatalog: pagination loop failed:', err)
+      errors++
+    }
+
+    return { synced, errors }
+  },
+})
