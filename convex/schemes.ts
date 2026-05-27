@@ -1,5 +1,6 @@
 import { query, mutation } from './_generated/server'
 import { v } from 'convex/values'
+import type { Id } from './_generated/dataModel'
 
 const stepSchema = v.object({
   paintId: v.union(v.id('paints'), v.null()),
@@ -170,10 +171,13 @@ export const getPublicScheme = query({
       }),
     )
 
+    const user = await ctx.db.get(scheme.userId as Id<'users'>)
+    const authorName = user?.name ?? user?.email ?? 'A PaintTracker user'
+
     return {
       ...scheme,
       steps: stepsWithPaints,
-      authorName: 'A PaintTracker user',
+      authorName,
     }
   },
 })

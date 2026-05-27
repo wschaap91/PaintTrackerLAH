@@ -26,6 +26,7 @@ useHead(() => ({
   meta: [
     { name: 'description', content: scheme.value?.description ?? 'A paint scheme on PaintTracker' },
     { property: 'og:title', content: scheme.value ? `${scheme.value.name} — PaintTracker` : 'PaintTracker' },
+    { property: 'og:image', content: '/favicon.ico' },
   ],
 }))
 
