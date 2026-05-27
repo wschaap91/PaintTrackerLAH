@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 antialiased;
+  }
+}
+
+@layer components {
+  .swatch {
+    @apply w-10 h-10 rounded-full ring-1 ring-gray-200 shadow-inner flex-shrink-0;
+  }
+
+  .swatch-sm {
+    @apply w-6 h-6 rounded-full ring-1 ring-gray-200 shadow-inner flex-shrink-0;
+  }
+
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 p-4;
+  }
+}

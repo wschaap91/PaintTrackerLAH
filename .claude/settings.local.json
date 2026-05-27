@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude plugin:*)",
+      "Bash(git -C /Users/wouterschaap/Documents/Git/PaintTrackerLAH log --oneline -5)",
+      "Bash(npm -v)",
+      "Bash(npx --version)",
+      "Bash(bun --version)",
+      "Bash(npx nuxi@latest:*)",
+      "Bash(yes n:*)",
+      "Bash(npm install:*)",
+      "Bash(npx nuxt:*)",
+      "Bash(curl -s http://localhost:3000)",
+      "Bash(npm ls:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npx drizzle-kit:*)",
+      "Bash(curl -s http://localhost:3000/api/paints)",
+      "Bash(curl -s -X POST http://localhost:3000/api/paints -H 'Content-Type: application/json' -d '{\"brand\":\"Citadel\",\"name\":\"Abaddon Black\",\"paintType\":\"base\",\"hexColor\":\"#231f20\",\"status\":\"owned\",\"transparency\":\"opaque\",\"finish\":\"matte\"}')",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s \"http://localhost:3000/api/paints?brand=Citadel\")",
+      "Bash(python3 -c \"import sys,json; print\\(len\\(json.load\\(sys.stdin\\)\\), 'Citadel paints'\\)\")",
+      "Bash(curl -s http://localhost:3000/paints)",
+      "Read(//Users/wouterschaap/.convex/**)",
+      "Bash(npx convex *)",
+      "Bash(npx tsx *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000)",
+      "Bash(vercel --version)",
+      "Bash(gh auth *)",
+      "Bash(vercel whoami *)",
+      "Bash(git add *)"
+    ]
+  }
+}

@@ -1,0 +1,46 @@
+<script setup lang="ts">
+const filters = defineModel<{
+  brand: string
+  paintType: string
+  status: string
+  q: string
+}>({ required: true })
+
+const brands = ['', 'Citadel', 'Vallejo', 'Army Painter', 'Scale75', 'AK Interactive', 'ProAcryl']
+const types = ['', 'base', 'layer', 'shade', 'contrast', 'dry', 'technical', 'primer', 'spray']
+const statuses = ['', 'owned', 'running_low', 'empty', 'wishlist']
+
+function formatLabel(value: string): string {
+  if (!value) return 'All'
+  return value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+}
+</script>
+
+<template>
+  <div class="flex flex-wrap items-center gap-3 mb-6">
+    <input
+      v-model="filters.q"
+      type="text"
+      placeholder="Search paints..."
+      class="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent w-full sm:w-64"
+    >
+    <select
+      v-model="filters.brand"
+      class="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-accent-500"
+    >
+      <option v-for="b in brands" :key="b" :value="b">{{ b || 'All Brands' }}</option>
+    </select>
+    <select
+      v-model="filters.paintType"
+      class="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-accent-500"
+    >
+      <option v-for="t in types" :key="t" :value="t">{{ formatLabel(t) || 'All Types' }}</option>
+    </select>
+    <select
+      v-model="filters.status"
+      class="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-accent-500"
+    >
+      <option v-for="s in statuses" :key="s" :value="s">{{ formatLabel(s) || 'All Statuses' }}</option>
+    </select>
+  </div>
+</template>
