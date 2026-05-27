@@ -178,7 +178,7 @@ export const getPublicScheme = query({
     )
 
     const user = scheme.userId ? await ctx.db.get(scheme.userId as Id<'users'>) : null
-    const authorName = user?.name ?? (user as any)?.email ?? 'A PaintTracker user'
+    const authorName = user?.name ?? 'A PaintTracker user'
 
     return {
       _id: scheme._id,

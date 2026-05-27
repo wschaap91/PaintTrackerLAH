@@ -15,10 +15,12 @@ const router = useRouter()
 const sortBy = ref<'recent' | 'popular'>('recent')
 const filterTechnique = ref('')
 const error = ref('')
+const loadMoreError = ref('')
 const LIMIT = 24
 
 async function load(reset = false) {
   error.value = ''
+  loadMoreError.value = ''
 
   if (reset) {
     schemes.value = []
@@ -46,10 +48,14 @@ async function load(reset = false) {
     }
   } catch (e) {
     console.error('Failed to load public schemes', e)
-    error.value = 'Something went wrong while loading schemes. Please try again.'
+    if (reset) {
+      error.value = 'Something went wrong while loading schemes. Please try again.'
+    } else {
+      loadMoreError.value = 'Failed to load more schemes. Please try again.'
+    }
   } finally {
-    isLoading.value = false
-    isLoadingMore.value = false
+    if (reset) isLoading.value = false
+    else isLoadingMore.value = false
   }
 }
 
@@ -188,6 +194,9 @@ async function clone(schemeId: string) {
           </div>
         </div>
       </div>
+
+      <!-- Load more error (inline, does not replace the grid) -->
+      <p v-if="loadMoreError" class="mt-6 text-center text-sm text-red-500">{{ loadMoreError }}</p>
 
       <!-- Load more -->
       <div v-if="hasMore && !filterTechnique" class="mt-8 text-center">

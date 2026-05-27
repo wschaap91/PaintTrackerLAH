@@ -30,7 +30,9 @@ async function togglePublic() {
 }
 
 async function copyLink() {
-  const url = `${window.location.origin}/s/${scheme.value?.slug}`
+  const slug = scheme.value?.slug
+  if (!slug) return
+  const url = `${window.location.origin}/s/${slug}`
   try {
     await navigator.clipboard.writeText(url)
     copied.value = true
