@@ -10,6 +10,7 @@
     "postinstall": "nuxt prepare"
   },
   "dependencies": {
+    "@convex-dev/auth": "^0.0.92",
     "@nuxtjs/tailwindcss": "^6.14.0",
     "convex": "^1.39.1",
     "html5-qrcode": "^2.3.8",
