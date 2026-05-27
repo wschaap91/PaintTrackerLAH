@@ -9,7 +9,13 @@ const stepSchema = v.object({
 
 export const list = query({
   handler: async (ctx) => {
-    const schemes = await ctx.db.query('schemes').collect()
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return []
+
+    const schemes = await ctx.db
+      .query('schemes')
+      .withIndex('by_user', q => q.eq('userId', identity.subject))
+      .collect()
 
     const result = await Promise.all(
       schemes.map(async (scheme) => {
@@ -43,8 +49,11 @@ export const list = query({
 export const get = query({
   args: { id: v.id('schemes') },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return null
+
     const scheme = await ctx.db.get(args.id)
-    if (!scheme) return null
+    if (!scheme || scheme.userId !== identity.subject) return null
 
     const steps = await ctx.db
       .query('schemeSteps')
@@ -71,7 +80,11 @@ export const create = mutation({
     steps: v.array(stepSchema),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Unauthenticated')
+
     const schemeId = await ctx.db.insert('schemes', {
+      userId: identity.subject,
       name: args.name,
       description: args.description,
     })
@@ -99,6 +112,12 @@ export const update = mutation({
     steps: v.optional(v.array(stepSchema)),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Unauthenticated')
+
+    const scheme = await ctx.db.get(args.id)
+    if (!scheme || scheme.userId !== identity.subject) throw new Error('Not found or forbidden')
+
     const { id, steps, ...rest } = args
 
     if (rest.name !== undefined || rest.description !== undefined) {
@@ -130,6 +149,12 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id('schemes') },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Unauthenticated')
+
+    const scheme = await ctx.db.get(args.id)
+    if (!scheme || scheme.userId !== identity.subject) throw new Error('Not found or forbidden')
+
     const steps = await ctx.db
       .query('schemeSteps')
       .withIndex('by_scheme', q => q.eq('schemeId', args.id))

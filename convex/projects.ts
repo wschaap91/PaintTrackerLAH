@@ -3,7 +3,13 @@ import { v } from 'convex/values'
 
 export const list = query({
   handler: async (ctx) => {
-    const projects = await ctx.db.query('projects').collect()
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return []
+
+    const projects = await ctx.db
+      .query('projects')
+      .withIndex('by_user', q => q.eq('userId', identity.subject))
+      .collect()
 
     const result = await Promise.all(
       projects.map(async (project) => {
@@ -51,8 +57,11 @@ export const list = query({
 export const get = query({
   args: { id: v.id('projects') },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return null
+
     const project = await ctx.db.get(args.id)
-    if (!project) return null
+    if (!project || project.userId !== identity.subject) return null
 
     const schemeLinks = await ctx.db
       .query('projectSchemes')
@@ -105,7 +114,11 @@ export const create = mutation({
     paintIds: v.array(v.id('paints')),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Unauthenticated')
+
     const projectId = await ctx.db.insert('projects', {
+      userId: identity.subject,
       name: args.name,
       description: args.description,
     })
@@ -131,6 +144,12 @@ export const update = mutation({
     paintIds: v.optional(v.array(v.id('paints'))),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Unauthenticated')
+
+    const project = await ctx.db.get(args.id)
+    if (!project || project.userId !== identity.subject) throw new Error('Not found or forbidden')
+
     const { id, schemeIds, paintIds, ...rest } = args
 
     if (rest.name !== undefined || rest.description !== undefined) {
@@ -164,6 +183,12 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id('projects') },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Unauthenticated')
+
+    const project = await ctx.db.get(args.id)
+    if (!project || project.userId !== identity.subject) throw new Error('Not found or forbidden')
+
     const schemeLinks = await ctx.db
       .query('projectSchemes')
       .withIndex('by_project', q => q.eq('projectId', args.id))

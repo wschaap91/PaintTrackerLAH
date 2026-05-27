@@ -9,7 +9,13 @@ export const list = query({
     q: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    let paints = await ctx.db.query('paints').collect()
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return []
+
+    let paints = await ctx.db
+      .query('paints')
+      .withIndex('by_user', q => q.eq('userId', identity.subject))
+      .collect()
 
     if (args.brand) paints = paints.filter(p => p.brand === args.brand)
     if (args.paintType) paints = paints.filter(p => p.paintType === args.paintType)
@@ -33,7 +39,11 @@ export const list = query({
 export const get = query({
   args: { id: v.id('paints') },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.id)
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return null
+    const paint = await ctx.db.get(args.id)
+    if (!paint || paint.userId !== identity.subject) return null
+    return paint
   },
 })
 
@@ -52,7 +62,9 @@ export const create = mutation({
     brandCode: v.union(v.string(), v.null()),
   },
   handler: async (ctx, args) => {
-    return await ctx.db.insert('paints', args)
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Unauthenticated')
+    return await ctx.db.insert('paints', { ...args, userId: identity.subject })
   },
 })
 
@@ -72,7 +84,11 @@ export const update = mutation({
     brandCode: v.optional(v.union(v.string(), v.null())),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Unauthenticated')
     const { id, ...updates } = args
+    const paint = await ctx.db.get(id)
+    if (!paint || paint.userId !== identity.subject) throw new Error('Not found or forbidden')
     await ctx.db.patch(id, updates)
   },
 })
@@ -80,6 +96,10 @@ export const update = mutation({
 export const remove = mutation({
   args: { id: v.id('paints') },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Unauthenticated')
+    const paint = await ctx.db.get(args.id)
+    if (!paint || paint.userId !== identity.subject) throw new Error('Not found or forbidden')
     await ctx.db.delete(args.id)
   },
 })
@@ -90,14 +110,23 @@ export const lookup = query({
     barcode: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return null
+
     if (args.code) {
       const normalized = args.code.trim().toLowerCase()
-      const all = await ctx.db.query('paints').collect()
+      const all = await ctx.db
+        .query('paints')
+        .withIndex('by_user', q => q.eq('userId', identity.subject))
+        .collect()
       const match = all.find(p => p.brandCode?.toLowerCase() === normalized)
       if (match) return match
     }
     if (args.barcode) {
-      const all = await ctx.db.query('paints').collect()
+      const all = await ctx.db
+        .query('paints')
+        .withIndex('by_user', q => q.eq('userId', identity.subject))
+        .collect()
       const match = all.find(p => p.barcode === args.barcode!.trim())
       if (match) return match
     }
