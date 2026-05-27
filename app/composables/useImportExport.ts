@@ -126,10 +126,10 @@ export function useImportExport() {
     const text = await file.text()
     const lines = text.split('\n').filter(l => l.trim())
     if (lines.length < 2) return null
-    const headers = lines[0]!.split(',').map(h => h.trim().replace(/^"|"$/g, ''))
+    const headers = parseCsvLine(lines[0]!).map(h => h.trim())
     const rows = lines.slice(1).map(line => {
-      const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''))
-      return Object.fromEntries(headers.map((h, i) => [h, values[i] ?? '']))
+      const values = parseCsvLine(line)
+      return Object.fromEntries(headers.map((h, i) => [h, (values[i] ?? '').trim()]))
     })
     return { headers, rows }
   }

@@ -3,25 +3,23 @@ import { api } from '../../convex/_generated/api'
 export function useAuth() {
   const { $convex, $convexSetAuth } = useNuxtApp()
 
-  const isAuthenticated = useState('auth:isAuthenticated', () => false)
-  const currentUserEmail = useState<string | null>('auth:email', () => null)
-  const isLoading = useState('auth:isLoading', () => false)
-  const error = useState<string | null>('auth:error', () => null)
-
-  // Check if we have a stored token on mount
-  onMounted(() => {
+  const isAuthenticated = useState('auth:isAuthenticated', () => {
+    if (!import.meta.client) return false
+    return !!localStorage.getItem('convex_auth_token')
+  })
+  const currentUserEmail = useState<string | null>('auth:email', () => {
+    if (!import.meta.client) return null
     const token = localStorage.getItem('convex_auth_token')
-    if (token) {
-      isAuthenticated.value = true
-      // Try to decode email from JWT payload (base64)
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]))
-        currentUserEmail.value = payload.email ?? null
-      } catch {
-        // ignore decode errors
-      }
+    if (!token) return null
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      return payload.email ?? null
+    } catch {
+      return null
     }
   })
+  const isLoading = useState('auth:isLoading', () => false)
+  const error = useState<string | null>('auth:error', () => null)
 
   async function signIn(email: string, password: string) {
     isLoading.value = true
@@ -41,6 +39,8 @@ export function useAuth() {
         } catch {
           currentUserEmail.value = email
         }
+      } else {
+        throw new Error('Sign in failed: no token returned')
       }
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Sign in failed'
@@ -63,6 +63,8 @@ export function useAuth() {
         $convexSetAuth(result.tokens.token)
         isAuthenticated.value = true
         currentUserEmail.value = email
+      } else {
+        throw new Error('Sign up failed: no token returned')
       }
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Sign up failed'
