@@ -72,6 +72,10 @@ export default defineSchema({
     paintType: v.string(),
     finish: v.string(),
     transparency: v.string(),
+    // optional: absent on static-seed entries (deduped by brandCode); present on
+    // every OpenMiniPaints-synced entry. Convex cannot enforce uniqueness at the
+    // DB level, so the sync action (T2) MUST query this index before inserting
+    // to prevent silent duplicates.
     openMiniPaintsId: v.optional(v.string()),
     syncedAt: v.optional(v.number()),
   })
