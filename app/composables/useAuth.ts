@@ -3,10 +3,10 @@ import { api } from '../../convex/_generated/api'
 export function useAuth() {
   const { $convex, $convexSetAuth } = useNuxtApp()
 
-  const isAuthenticated = ref(false)
-  const currentUserEmail = ref<string | null>(null)
-  const isLoading = ref(false)
-  const error = ref<string | null>(null)
+  const isAuthenticated = useState('auth:isAuthenticated', () => false)
+  const currentUserEmail = useState<string | null>('auth:email', () => null)
+  const isLoading = useState('auth:isLoading', () => false)
+  const error = useState<string | null>('auth:error', () => null)
 
   // Check if we have a stored token on mount
   onMounted(() => {
