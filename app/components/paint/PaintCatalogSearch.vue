@@ -8,7 +8,7 @@ const emit = defineEmits<{
   select: [paint: CatalogPaint]
 }>()
 
-const { query, results, isLoading } = useCatalogSearch()
+const { query, results, isLoading, error } = useCatalogSearch()
 const inputValue = ref('')
 const wrapper = ref<HTMLElement | null>(null)
 
@@ -32,6 +32,7 @@ function onClickOutside(event: MouseEvent) {
   if (wrapper.value && !wrapper.value.contains(event.target as Node)) {
     if (debounceTimer !== null) clearTimeout(debounceTimer)
     debounceTimer = null
+    inputValue.value = ''
     query.value = ''
   }
 }
@@ -45,7 +46,7 @@ onUnmounted(() => {
   if (debounceTimer !== null) clearTimeout(debounceTimer)
 })
 
-const showDropdown = computed(() => query.value.trim().length >= 2)
+const showDropdown = computed(() => inputValue.value.trim().length >= 2)
 </script>
 
 <template>
@@ -63,6 +64,9 @@ const showDropdown = computed(() => query.value.trim().length >= 2)
     >
       <div v-if="isLoading" class="p-3 text-sm text-gray-500">
         Loading...
+      </div>
+      <div v-else-if="error" class="p-3 text-sm text-red-500">
+        Search failed. Please try again.
       </div>
       <div v-else-if="results && results.length === 0" class="p-3 text-sm text-gray-500">
         No results

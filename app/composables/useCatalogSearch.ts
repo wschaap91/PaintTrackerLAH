@@ -6,8 +6,10 @@ export function useCatalogSearch() {
   const query = ref('')
   const results = ref<FunctionReturnType<typeof api.catalogSync.searchCatalog> | undefined>(undefined)
   const isLoading = ref(false)
+  const error = ref<Error | null>(null)
 
   let unsubscribe: (() => void) | null = null
+  let disposed = false
 
   watch(
     () => query.value.trim(),
@@ -21,6 +23,9 @@ export function useCatalogSearch() {
         isLoading.value = false
         return
       }
+      if (disposed) return
+      results.value = undefined
+      error.value = null
       isLoading.value = true
       unsubscribe = client.onUpdate(
         api.catalogSync.searchCatalog,
@@ -29,7 +34,8 @@ export function useCatalogSearch() {
           results.value = data
           isLoading.value = false
         },
-        () => {
+        (err: Error) => {
+          error.value = err
           isLoading.value = false
         },
       )
@@ -38,8 +44,9 @@ export function useCatalogSearch() {
   )
 
   onScopeDispose(() => {
+    disposed = true
     if (unsubscribe) unsubscribe()
   })
 
-  return { query, results, isLoading }
+  return { query, results, isLoading, error }
 }
