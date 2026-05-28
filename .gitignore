@@ -27,3 +27,9 @@ logs
 data/*.db
 data/*.db-journal
 .vercel
+
+# Claude Code worktrees (temporary agent sandboxes)
+.claude/worktrees/
+
+# External data repos
+OpenMiniPaints/
