@@ -116,6 +116,39 @@ export const searchCatalog = query({
 })
 
 // ---------------------------------------------------------------------------
+// lookupCatalogByCode — exact code/barcode lookup (auth required)
+// ---------------------------------------------------------------------------
+
+export const lookupCatalogByCode = query({
+  args: {
+    code: v.optional(v.string()),
+    barcode: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return null
+
+    if (args.code) {
+      const result = await ctx.db
+        .query('catalogPaints')
+        .withIndex('by_brand_code', q => q.eq('brandCode', args.code!.trim()))
+        .first()
+      if (result) return result
+    }
+
+    if (args.barcode) {
+      const result = await ctx.db
+        .query('catalogPaints')
+        .filter(q => q.eq(q.field('barcode'), args.barcode!.trim()))
+        .first()
+      if (result) return result
+    }
+
+    return null
+  },
+})
+
+// ---------------------------------------------------------------------------
 // getCatalogPaint — public query (auth required)
 // ---------------------------------------------------------------------------
 

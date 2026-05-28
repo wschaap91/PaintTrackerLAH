@@ -92,6 +92,7 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 **catalogSync.ts** (authenticated unless noted)
 - `searchCatalog({ q, brand?, limit? })` → `CatalogPaint[]` — auth required; uses `search_name` searchIndex; limit clamped 1–25 (default 10)
 - `getCatalogPaint({ id })` → `CatalogPaint | null` — auth required
+- `lookupCatalogByCode({ code?, barcode? })` → `CatalogPaint | null` — auth required; `code` uses `by_brand_code` index (exact match); `barcode` uses filter scan
 - `internal.upsertCatalogPaint(...)` — internalMutation; upserts by `openMiniPaintsId`, fallback brand+brandCode for pre-sync rows; always sets `syncedAt`
 - `internal.syncCatalog({})` — internalAction; cursor-paged HTTP fetch from OpenMiniPaints API; scheduled nightly via `crons.ts`; returns `{ synced, errors }`
 
@@ -99,9 +100,9 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 
 ## Key Patterns
 
-- **Composable-only data access**: `useConvexQuery`, `useConvexMutation`, `useConvexClient` wrap all Convex calls (ADR-008)
+- **Composable-only data access**: `useConvexQuery`, `useConvexMutation`, `useConvexClient` wrap all Convex calls (ADR-008); `useCatalogSearch` and `useCatalogPaint` use `client.onUpdate` directly for real-time subscriptions with explicit lifecycle management (immediate watch, disposed guard via `onScopeDispose`, stale `data` cleared on unsubscribe or error, `error` ref exposed to callers)
 - **Domain composables**: `usePaints`, `useSchemes`, `useProjects`, `useImportExport`
-- **Auth state**: `useState('auth:isAuthenticated')` as reactive Nuxt state; JWT + refresh token persisted in `localStorage`; in-memory `authToken`/`refreshToken` variables serve as the authoritative fast-path so `fetchToken` avoids synchronous localStorage reads
+- **Auth state**: `useState('auth:isAuthenticated')` as reactive Nuxt state; JWT + refresh token persisted in `localStorage`; in-memory `authToken`/`refreshToken` variables serve as the authoritative fast-path so `fetchToken` avoids synchronous localStorage reads; `signIn`/`signUp` throw `'Backend not available — check CONVEX_URL configuration'` if `$convex` is undefined; `signOut` degrades gracefully (skips remote call, still clears local state)
 - **Token refresh**: `client.setAuth(fetchToken, onAuthChange)` — Convex calls `fetchToken({ forceRefreshToken: true })` before JWT expiry; exchanges refresh token via `api.auth.signIn({ refreshToken })`; rotates refresh token if server returns a new one; failed refresh falls through to `null` triggering clean logout via `onAuthChange`
 - **Data scoping**: every query/mutation resolves `userId` via `ctx.auth.getUserIdentity().subject`
 - **Route guard**: `auth.global.ts` middleware — public exemptions: `/auth/**`, `/s/**`, `/discover`
@@ -120,7 +121,7 @@ app/
     project/      ProjectCard, ProjectForm, ProjectPaintRow, ProjectSchemeRow
     scheme/       SchemeCard, SchemeForm, SchemeStepRow
     ui/           AppHeader, EmptyState, ErrorBanner, LoadingSpinner
-  composables/    useAuth.ts, useConvex.ts, usePaints.ts, useCatalogSearch.ts,
+  composables/    useAuth.ts, useCatalogSearch.ts, useConvex.ts, usePaints.ts,
                   useSchemes.ts, useProjects.ts, useImportExport.ts
   layouts/        default.vue
   middleware/     auth.global.ts
@@ -132,10 +133,9 @@ app/
     schemes/      index.vue, [id].vue
     projects/     index.vue, [id].vue
   plugins/        convex.client.ts
-  utils/          known-paints.ts  (~150 static paint entries)
 convex/
   schema.ts, auth.ts, auth.config.js, http.ts
-  paints.ts, schemes.ts, projects.ts, migrations.ts, catalogSync.ts
+  paints.ts, schemes.ts, projects.ts, migrations.ts, catalogSync.ts, crons.ts
   _generated/     (auto-generated — do not edit)
 ```
 
@@ -144,5 +144,6 @@ convex/
 - **Frontend**: Vercel with Nuxt adapter — ADR-006
 - **Backend**: Convex Cloud (database, serverless functions, auth JWKS)
 - **Deploy**: `npx convex deploy --cmd 'npm run build'` — atomic frontend + backend
+- **Env var**: `NUXT_PUBLIC_CONVEX_URL` (preferred, Nuxt convention) or `CONVEX_URL` (fallback) — sets `runtimeConfig.public.convexUrl`
 - **Auth provider**: @convex-dev/auth Password provider; Google OAuth deferred
 - **External services**: none beyond Vercel + Convex Cloud
