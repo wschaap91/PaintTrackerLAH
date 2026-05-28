@@ -1,5 +1,6 @@
 import { api } from '../../convex/_generated/api'
-import type { Doc, Id } from '../../convex/_generated/dataModel'
+import type { FunctionReturnType } from 'convex/server'
+import type { Id } from '../../convex/_generated/dataModel'
 
 interface PaintFilters {
   brand?: string
@@ -40,7 +41,7 @@ export function usePaint(id: Id<'paints'>) {
 
 export function useCatalogPaint(id: Ref<Id<'catalogPaints'> | undefined>) {
   const client = useConvexClient()
-  const data = ref<Doc<'catalogPaints'> | null | undefined>(undefined)
+  const data = ref<FunctionReturnType<typeof api.catalogSync.getCatalogPaint> | undefined>(undefined)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
@@ -53,14 +54,14 @@ export function useCatalogPaint(id: Ref<Id<'catalogPaints'> | undefined>) {
       if (unsubscribe) {
         unsubscribe()
         unsubscribe = null
+        data.value = undefined
       }
       if (newId === undefined) {
-        data.value = undefined
         isLoading.value = false
+        error.value = null
         return
       }
       if (disposed) return
-      data.value = undefined
       isLoading.value = true
       error.value = null
       unsubscribe = client.onUpdate(
