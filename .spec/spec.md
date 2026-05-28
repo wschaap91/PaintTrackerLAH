@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-28 (after PRD v5 cycle, Wave 4 — useCatalogPaint composable + catalog fields on paint detail)
+Last updated: 2026-05-28 (merged T7 + Wave 4 — useCatalogPaint composable, catalog pre-fill flow in add.vue, catalog fields on paint detail)
 
 ## Architecture
 
@@ -105,6 +105,8 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 - **Token refresh**: `client.setAuth(fetchToken, onAuthChange)` — Convex calls `fetchToken({ forceRefreshToken: true })` before JWT expiry; exchanges refresh token via `api.auth.signIn({ refreshToken })`; rotates refresh token if server returns a new one; failed refresh falls through to `null` triggering clean logout via `onAuthChange`
 - **Data scoping**: every query/mutation resolves `userId` via `ctx.auth.getUserIdentity().subject`
 - **Route guard**: `auth.global.ts` middleware — public exemptions: `/auth/**`, `/s/**`, `/discover`
+- **Catalog pre-fill**: `PaintCatalogSearch` renders a live search dropdown (via `useCatalogSearch`). On selection, `onCatalogSelect` in `add.vue` populates `catalogInitialData` (pre-fills the form) and stores `selectedCatalogPaintId`. On submit, the ID is conditionally spread into `paints.create` as `catalogPaintId`, then cleared on success to prevent stale reattachment on retry.
+- **`useCatalogPaint`**: subscribes to a single catalog paint by `Id<'catalogPaints'>` via `client.onUpdate`; returns `{ data, isLoading, error }` — `error` surfaces auth expiry or network failures that are otherwise indistinguishable from "no ID given"
 - **Error handling**: try/catch/finally with local `error` ref + `isLoading` ref in page components
 - **Styling**: Tailwind only — no inline styles, no per-component CSS; custom accent palette
 
@@ -125,7 +127,7 @@ app/
     auth/         login.vue, register.vue
     s/            [slug].vue  (public)
     discover.vue              (public)
-    paints/       index.vue, [id].vue
+    paints/       index.vue, add.vue, [id].vue
     schemes/      index.vue, [id].vue
     projects/     index.vue, [id].vue
   plugins/        convex.client.ts
