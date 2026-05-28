@@ -43,19 +43,23 @@ export function useCatalogPaint(id: Ref<Id<'catalogPaints'> | undefined>) {
   const client = useConvexClient()
   const data = ref<FunctionReturnType<typeof api.catalogSync.getCatalogPaint> | undefined>(undefined)
   const isLoading = ref(false)
+  const error = ref<string | null>(null)
   let unsubscribe: (() => void) | null = null
 
   watch(id, (newId) => {
     if (unsubscribe) {
       unsubscribe()
       unsubscribe = null
+      data.value = undefined
     }
     if (!newId) {
       data.value = undefined
       isLoading.value = false
+      error.value = null
       return
     }
     isLoading.value = true
+    error.value = null
     unsubscribe = client.onUpdate(
       api.catalogSync.getCatalogPaint,
       { id: newId },
@@ -64,6 +68,7 @@ export function useCatalogPaint(id: Ref<Id<'catalogPaints'> | undefined>) {
         isLoading.value = false
       },
       () => {
+        error.value = 'Failed to load catalog data'
         isLoading.value = false
       },
     )
@@ -73,5 +78,5 @@ export function useCatalogPaint(id: Ref<Id<'catalogPaints'> | undefined>) {
     if (unsubscribe) unsubscribe()
   })
 
-  return { data, isLoading }
+  return { data, isLoading, error }
 }

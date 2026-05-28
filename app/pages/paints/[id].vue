@@ -12,7 +12,7 @@ const error = ref('')
 const showDeleteConfirm = ref(false)
 
 const catalogId = computed(() => paint.value?.catalogPaintId)
-const { data: catalogPaint, isLoading: catalogLoading } = useCatalogPaint(catalogId)
+const { data: catalogPaint, isLoading: catalogLoading, error: catalogError } = useCatalogPaint(catalogId)
 
 function formatLabel(value: string | null | undefined): string {
   if (!value) return '—'
@@ -122,6 +122,8 @@ async function handleDelete() {
           <h2 class="text-sm font-semibold text-gray-700">Catalog data</h2>
 
           <div v-if="catalogLoading" class="text-sm text-gray-500">Loading catalog data...</div>
+
+          <div v-else-if="catalogError" class="text-sm text-red-600">{{ catalogError }}</div>
 
           <div v-else-if="catalogPaint === null" class="text-sm text-gray-500">Catalog entry unavailable</div>
 
