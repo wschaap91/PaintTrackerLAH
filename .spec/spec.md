@@ -99,7 +99,7 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 
 ## Key Patterns
 
-- **Composable-only data access**: `useConvexQuery`, `useConvexMutation`, `useConvexClient` wrap all Convex calls (ADR-008); `useCatalogSearch` uses `client.onUpdate` directly for debounced real-time search with explicit subscription lifecycle (disposed guard, manual unsubscribe)
+- **Composable-only data access**: `useConvexQuery`, `useConvexMutation`, `useConvexClient` wrap all Convex calls (ADR-008); `useCatalogSearch` uses `client.onUpdate` directly for real-time search with explicit subscription lifecycle (disposed guard, stale results cleared on error, manual unsubscribe)
 - **Domain composables**: `usePaints`, `useSchemes`, `useProjects`, `useImportExport`
 - **Auth state**: `useState('auth:isAuthenticated')` as reactive Nuxt state; JWT + refresh token persisted in `localStorage`; in-memory `authToken`/`refreshToken` variables serve as the authoritative fast-path so `fetchToken` avoids synchronous localStorage reads
 - **Token refresh**: `client.setAuth(fetchToken, onAuthChange)` — Convex calls `fetchToken({ forceRefreshToken: true })` before JWT expiry; exchanges refresh token via `api.auth.signIn({ refreshToken })`; rotates refresh token if server returns a new one; failed refresh falls through to `null` triggering clean logout via `onAuthChange`
