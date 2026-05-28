@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-28 (after PRD v5 cycle, Wave 3 — crons.ts nightly catalog sync)
+Last updated: 2026-05-28 (after PRD v5 cycle, Wave 3 — useCatalogSearch composable + PaintCatalogSearch component)
 
 ## Architecture
 
@@ -99,7 +99,7 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 
 ## Key Patterns
 
-- **Composable-only data access**: `useConvexQuery`, `useConvexMutation`, `useConvexClient` wrap all Convex calls (ADR-008)
+- **Composable-only data access**: `useConvexQuery`, `useConvexMutation`, `useConvexClient` wrap all Convex calls (ADR-008); `useCatalogSearch` uses `client.onUpdate` directly for debounced real-time search with explicit subscription lifecycle (disposed guard, manual unsubscribe)
 - **Domain composables**: `usePaints`, `useSchemes`, `useProjects`, `useImportExport`
 - **Auth state**: `useState('auth:isAuthenticated')` as reactive Nuxt state; JWT + refresh token persisted in `localStorage`; in-memory `authToken`/`refreshToken` variables serve as the authoritative fast-path so `fetchToken` avoids synchronous localStorage reads
 - **Token refresh**: `client.setAuth(fetchToken, onAuthChange)` — Convex calls `fetchToken({ forceRefreshToken: true })` before JWT expiry; exchanges refresh token via `api.auth.signIn({ refreshToken })`; rotates refresh token if server returns a new one; failed refresh falls through to `null` triggering clean logout via `onAuthChange`
@@ -113,12 +113,12 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 ```
 app/
   components/
-    paint/        PaintCard, PaintForm, PaintList, PaintQuickAdd, PaintSearch
+    paint/        PaintCard, PaintCatalogSearch, PaintForm, PaintList, PaintQuickAdd, PaintSearch
     project/      ProjectCard, ProjectForm, ProjectPaintRow, ProjectSchemeRow
     scheme/       SchemeCard, SchemeForm, SchemeStepRow
     ui/           AppHeader, EmptyState, ErrorBanner, LoadingSpinner
-  composables/    useAuth.ts, useConvex.ts, usePaints.ts, useSchemes.ts,
-                  useProjects.ts, useImportExport.ts
+  composables/    useAuth.ts, useCatalogSearch.ts, useConvex.ts, usePaints.ts,
+                  useSchemes.ts, useProjects.ts, useImportExport.ts
   layouts/        default.vue
   middleware/     auth.global.ts
   pages/
