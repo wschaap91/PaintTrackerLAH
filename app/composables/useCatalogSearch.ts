@@ -35,6 +35,7 @@ export function useCatalogSearch() {
           isLoading.value = false
         },
         (err: Error) => {
+          results.value = undefined
           error.value = err
           isLoading.value = false
         },
