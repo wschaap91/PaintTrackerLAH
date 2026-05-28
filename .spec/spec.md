@@ -102,7 +102,7 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 
 - **Composable-only data access**: `useConvexQuery`, `useConvexMutation`, `useConvexClient` wrap all Convex calls (ADR-008); `useCatalogSearch` and `useCatalogPaint` use `client.onUpdate` directly for real-time subscriptions with explicit lifecycle management (immediate watch, disposed guard via `onScopeDispose`, stale `data` cleared on unsubscribe or error, `error` ref exposed to callers)
 - **Domain composables**: `usePaints`, `useSchemes`, `useProjects`, `useImportExport`
-- **Auth state**: `useState('auth:isAuthenticated')` as reactive Nuxt state; JWT + refresh token persisted in `localStorage`; in-memory `authToken`/`refreshToken` variables serve as the authoritative fast-path so `fetchToken` avoids synchronous localStorage reads
+- **Auth state**: `useState('auth:isAuthenticated')` as reactive Nuxt state; JWT + refresh token persisted in `localStorage`; in-memory `authToken`/`refreshToken` variables serve as the authoritative fast-path so `fetchToken` avoids synchronous localStorage reads; `signIn`/`signUp` throw `'Backend not available — check CONVEX_URL configuration'` if `$convex` is undefined; `signOut` degrades gracefully (skips remote call, still clears local state)
 - **Token refresh**: `client.setAuth(fetchToken, onAuthChange)` — Convex calls `fetchToken({ forceRefreshToken: true })` before JWT expiry; exchanges refresh token via `api.auth.signIn({ refreshToken })`; rotates refresh token if server returns a new one; failed refresh falls through to `null` triggering clean logout via `onAuthChange`
 - **Data scoping**: every query/mutation resolves `userId` via `ctx.auth.getUserIdentity().subject`
 - **Route guard**: `auth.global.ts` middleware — public exemptions: `/auth/**`, `/s/**`, `/discover`
@@ -143,5 +143,6 @@ convex/
 - **Frontend**: Vercel with Nuxt adapter — ADR-006
 - **Backend**: Convex Cloud (database, serverless functions, auth JWKS)
 - **Deploy**: `npx convex deploy --cmd 'npm run build'` — atomic frontend + backend
+- **Env var**: `NUXT_PUBLIC_CONVEX_URL` (preferred, Nuxt convention) or `CONVEX_URL` (fallback) — sets `runtimeConfig.public.convexUrl`
 - **Auth provider**: @convex-dev/auth Password provider; Google OAuth deferred
 - **External services**: none beyond Vercel + Convex Cloud
