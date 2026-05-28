@@ -83,7 +83,7 @@ export function useAuth() {
     } catch {
       // ignore errors, clear locally anyway
     } finally {
-      $convexSetAuth(null)
+      if ($convexSetAuth) $convexSetAuth(null)
       isAuthenticated.value = false
       currentUserEmail.value = null
       isLoading.value = false
