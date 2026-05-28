@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-27 (after PRD v5 cycle, Wave 2 — catalogSync.ts + paints.catalogPaintId)
+Last updated: 2026-05-28 (after PR #43 — catalogPaintId added to bulkCreate)
 
 ## Architecture
 
@@ -75,7 +75,7 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 - `create({ name, brand, hexColor, paintType?, status?, barcode?, notes?, quantity?, catalogPaintId? })` → `Id<"paints">`
 - `update({ id, ...fields })` → `void`
 - `remove({ id })` → `void`
-- `bulkCreate({ paints[] })` → `{ created, skipped }` — dedupes by name+brand
+- `bulkCreate({ paints[], onDuplicate: 'skip' | 'update' })` → `{ added, skipped, updated }` — dedupes by name+brand; each paint accepts `catalogPaintId?`
 - `search({ query })` → `Paint[]`
 
 **schemes.ts** (authenticated unless noted)
@@ -105,6 +105,8 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 - **Token refresh**: `client.setAuth(fetchToken, onAuthChange)` — Convex calls `fetchToken({ forceRefreshToken: true })` before JWT expiry; exchanges refresh token via `api.auth.signIn({ refreshToken })`; rotates refresh token if server returns a new one; failed refresh falls through to `null` triggering clean logout via `onAuthChange`
 - **Data scoping**: every query/mutation resolves `userId` via `ctx.auth.getUserIdentity().subject`
 - **Route guard**: `auth.global.ts` middleware — public exemptions: `/auth/**`, `/s/**`, `/discover`
+- **Catalog pre-fill**: `PaintCatalogSearch` renders a live search dropdown (via `useCatalogSearch`). On selection, `onCatalogSelect` in `add.vue` populates `catalogInitialData` (pre-fills the form) and stores `selectedCatalogPaintId`. On submit, the ID is conditionally spread into `paints.create` as `catalogPaintId`, then cleared on success to prevent stale reattachment on retry.
+- **`useCatalogPaint`**: subscribes to a single catalog paint by `Id<'catalogPaints'>` via `client.onUpdate`; returns `{ data, isLoading, error }` — `error` surfaces auth expiry or network failures that are otherwise indistinguishable from "no ID given"
 - **Error handling**: try/catch/finally with local `error` ref + `isLoading` ref in page components
 - **Styling**: Tailwind only — no inline styles, no per-component CSS; custom accent palette
 
@@ -113,19 +115,19 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 ```
 app/
   components/
-    paint/        PaintCard, PaintForm, PaintList, PaintQuickAdd, PaintSearch
+    paint/        PaintCard, PaintCatalogSearch, PaintForm, PaintList, PaintQuickAdd, PaintSearch
     project/      ProjectCard, ProjectForm, ProjectPaintRow, ProjectSchemeRow
     scheme/       SchemeCard, SchemeForm, SchemeStepRow
     ui/           AppHeader, EmptyState, ErrorBanner, LoadingSpinner
-  composables/    useAuth.ts, useConvex.ts, usePaints.ts, useSchemes.ts,
-                  useProjects.ts, useImportExport.ts
+  composables/    useAuth.ts, useConvex.ts, usePaints.ts, useCatalogSearch.ts,
+                  useSchemes.ts, useProjects.ts, useImportExport.ts
   layouts/        default.vue
   middleware/     auth.global.ts
   pages/
     auth/         login.vue, register.vue
     s/            [slug].vue  (public)
     discover.vue              (public)
-    paints/       index.vue, [id].vue
+    paints/       index.vue, add.vue, [id].vue
     schemes/      index.vue, [id].vue
     projects/     index.vue, [id].vue
   plugins/        convex.client.ts
