@@ -40,7 +40,7 @@ function formatLabel(value: string): string {
 
 function handleSubmit() {
   const data: Record<string, unknown> = {
-    brand: props.catalogMode ? form.brand : effectiveBrand.value,
+    brand: effectiveBrand.value,
     name: form.name,
     paintType: form.paintType,
     hexColor: form.hexColor,

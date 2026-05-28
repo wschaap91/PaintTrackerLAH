@@ -56,7 +56,7 @@ async function handleSubmit(data: Record<string, unknown>) {
     </div>
 
     <div :key="formKey" class="card">
-      <PaintForm submit-label="Add Paint" :initial-data="catalogInitialData" @submit="handleSubmit" />
+      <PaintForm submit-label="Add Paint" :initial-data="catalogInitialData" :catalog-mode="!!catalogInitialData" @submit="handleSubmit" />
     </div>
   </div>
 </template>
