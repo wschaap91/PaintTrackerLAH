@@ -11,6 +11,9 @@ const isEditing = ref(false)
 const error = ref('')
 const showDeleteConfirm = ref(false)
 
+const catalogId = computed(() => paint.value?.catalogPaintId)
+const { data: catalogPaint, isLoading: catalogLoading } = useCatalogPaint(catalogId)
+
 function formatLabel(value: string | null | undefined): string {
   if (!value) return '—'
   return value.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
@@ -112,6 +115,52 @@ async function handleDelete() {
           <div v-if="paint.notes" class="pt-4 border-t border-gray-100">
             <p class="text-xs text-gray-500 mb-1">Notes</p>
             <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ paint.notes }}</p>
+          </div>
+        </div>
+
+        <div v-if="paint.catalogPaintId" class="card mt-4 space-y-3">
+          <h2 class="text-sm font-semibold text-gray-700">Catalog data</h2>
+
+          <div v-if="catalogLoading" class="text-sm text-gray-500">Loading catalog data...</div>
+
+          <div v-else-if="catalogPaint === null" class="text-sm text-gray-500">Catalog entry unavailable</div>
+
+          <div v-else-if="catalogPaint" class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            <div v-if="catalogPaint.hexColor">
+              <p class="text-xs text-gray-500 mb-1">Colour</p>
+              <div class="flex items-center gap-2">
+                <p class="text-sm font-mono text-gray-900">{{ catalogPaint.hexColor }}</p>
+                <span class="bg-blue-50 text-blue-700 ring-blue-600/20 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset">from catalog</span>
+              </div>
+            </div>
+            <div v-if="catalogPaint.paintType">
+              <p class="text-xs text-gray-500 mb-1">Type</p>
+              <div class="flex items-center gap-2">
+                <p class="text-sm text-gray-900">{{ formatLabel(catalogPaint.paintType) }}</p>
+                <span class="bg-blue-50 text-blue-700 ring-blue-600/20 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset">from catalog</span>
+              </div>
+            </div>
+            <div v-if="catalogPaint.finish">
+              <p class="text-xs text-gray-500 mb-1">Finish</p>
+              <div class="flex items-center gap-2">
+                <p class="text-sm text-gray-900">{{ formatLabel(catalogPaint.finish) }}</p>
+                <span class="bg-blue-50 text-blue-700 ring-blue-600/20 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset">from catalog</span>
+              </div>
+            </div>
+            <div v-if="catalogPaint.transparency">
+              <p class="text-xs text-gray-500 mb-1">Transparency</p>
+              <div class="flex items-center gap-2">
+                <p class="text-sm text-gray-900">{{ formatLabel(catalogPaint.transparency) }}</p>
+                <span class="bg-blue-50 text-blue-700 ring-blue-600/20 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset">from catalog</span>
+              </div>
+            </div>
+            <div v-if="catalogPaint.brandCode">
+              <p class="text-xs text-gray-500 mb-1">Brand Code</p>
+              <div class="flex items-center gap-2">
+                <p class="text-sm font-mono text-gray-900">{{ catalogPaint.brandCode }}</p>
+                <span class="bg-blue-50 text-blue-700 ring-blue-600/20 inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset">from catalog</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
