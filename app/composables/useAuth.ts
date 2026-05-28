@@ -25,6 +25,7 @@ export function useAuth() {
     isLoading.value = true
     error.value = null
     try {
+      if (!$convex) throw new Error('Backend not available — check CONVEX_URL configuration')
       const result = await $convex.action(api.auth.signIn, {
         provider: 'password',
         params: { email, password, flow: 'signIn' },
@@ -54,6 +55,7 @@ export function useAuth() {
     isLoading.value = true
     error.value = null
     try {
+      if (!$convex) throw new Error('Backend not available — check CONVEX_URL configuration')
       const result = await $convex.action(api.auth.signIn, {
         provider: 'password',
         params: { email, password, flow: 'signUp' },
@@ -77,7 +79,7 @@ export function useAuth() {
   async function signOut() {
     isLoading.value = true
     try {
-      await $convex.action(api.auth.signOut, {})
+      if ($convex) await $convex.action(api.auth.signOut, {})
     } catch {
       // ignore errors, clear locally anyway
     } finally {
