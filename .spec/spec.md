@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-28 (merged T7 + Wave 4 — useCatalogPaint composable, catalog pre-fill flow in add.vue, catalog fields on paint detail)
+Last updated: 2026-05-28 (after PRD v5 cycle, T9 — live catalog lookup, removed static known-paints)
 
 ## Architecture
 
@@ -92,6 +92,7 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 **catalogSync.ts** (authenticated unless noted)
 - `searchCatalog({ q, brand?, limit? })` → `CatalogPaint[]` — auth required; uses `search_name` searchIndex; limit clamped 1–25 (default 10)
 - `getCatalogPaint({ id })` → `CatalogPaint | null` — auth required
+- `lookupCatalogByCode({ code?, barcode? })` → `CatalogPaint | null` — auth required; `code` uses `by_brand_code` index (exact match); `barcode` uses filter scan
 - `internal.upsertCatalogPaint(...)` — internalMutation; upserts by `openMiniPaintsId`, fallback brand+brandCode for pre-sync rows; always sets `syncedAt`
 - `internal.syncCatalog({})` — internalAction; cursor-paged HTTP fetch from OpenMiniPaints API; scheduled nightly via `crons.ts`; returns `{ synced, errors }`
 
@@ -131,7 +132,6 @@ app/
     schemes/      index.vue, [id].vue
     projects/     index.vue, [id].vue
   plugins/        convex.client.ts
-  utils/          known-paints.ts  (~150 static paint entries)
 convex/
   schema.ts, auth.ts, auth.config.js, http.ts
   paints.ts, schemes.ts, projects.ts, migrations.ts, catalogSync.ts, crons.ts
