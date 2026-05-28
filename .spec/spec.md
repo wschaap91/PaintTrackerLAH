@@ -75,7 +75,7 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 - `create({ name, brand, hexColor, paintType?, status?, barcode?, notes?, quantity?, catalogPaintId? })` → `Id<"paints">`
 - `update({ id, ...fields })` → `void`
 - `remove({ id })` → `void`
-- `bulkCreate({ paints[] })` → `{ created, skipped }` — dedupes by name+brand
+- `bulkCreate({ paints[], onDuplicate: 'skip' | 'update' })` → `{ added, skipped, updated }` — dedupes by name+brand; each paint accepts `catalogPaintId?`
 - `search({ query })` → `Paint[]`
 
 **schemes.ts** (authenticated unless noted)
@@ -108,6 +108,7 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 - **Route guard**: `auth.global.ts` middleware — public exemptions: `/auth/**`, `/s/**`, `/discover`
 - **Catalog-first add flow**: `paints/add.vue` is a three-state UI machine (`search` | `catalog` | `manual`). State `search`: inline debounced catalog search via `useCatalogSearch`, dropdown results, "Add manually" link. State `catalog`: selected paint summary card + `PaintForm` in `catalogMode` (brand, name, type, color, transparency, finish, specialType, barcode, brandCode render as read-only `<p>`; status + notes remain editable); `catalogInitialData` pre-fills the form; `selectedCatalogPaintId` passed to `paints.create` as `catalogPaintId`, cleared after successful submit. State `manual`: full editable `PaintForm`, no catalog link. `PaintCatalogSearch` component still exists in the codebase but is no longer used by `add.vue`.
 - **`useCatalogPaint`**: subscribes to a single catalog paint by `Id<'catalogPaints'>` via `client.onUpdate`; returns `{ data, isLoading, error }` — `error` surfaces auth expiry or network failures that are otherwise indistinguishable from "no ID given"
+- **Quick Add**: `PaintQuickAdd` offers Code and Scan tabs only (Manual tab removed). Code tab accepts a brand code and looks up a matching catalog paint; Scan tab uses the barcode scanner via `html5-qrcode`. On a successful match, a confirmation card is displayed and `addPaint` is called directly. Error messages direct users to the full Add Paint page rather than offering manual input.
 - **Error handling**: try/catch/finally with local `error` ref + `isLoading` ref in page components
 - **Styling**: Tailwind only — no inline styles, no per-component CSS; custom accent palette
 
