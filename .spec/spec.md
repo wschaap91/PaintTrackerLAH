@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-27 (after PRD v5 cycle, Wave 2 — catalogSync.ts + paints.catalogPaintId)
+Last updated: 2026-05-28 (after PRD v5 cycle, Wave 3 — useCatalogSearch composable)
 
 ## Architecture
 
@@ -100,7 +100,8 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 ## Key Patterns
 
 - **Composable-only data access**: `useConvexQuery`, `useConvexMutation`, `useConvexClient` wrap all Convex calls (ADR-008)
-- **Domain composables**: `usePaints`, `useSchemes`, `useProjects`, `useImportExport`
+- **Domain composables**: `usePaints`, `useSchemes`, `useProjects`, `useImportExport`, `useCatalogSearch`
+- **Skip-guard subscriptions**: `useCatalogSearch` uses `client.onUpdate` directly with a skip guard (no subscription created when query < 2 chars after trim); subscription torn down and results cleared when query drops below threshold or on backend error
 - **Auth state**: `useState('auth:isAuthenticated')` as reactive Nuxt state; JWT + refresh token persisted in `localStorage`; in-memory `authToken`/`refreshToken` variables serve as the authoritative fast-path so `fetchToken` avoids synchronous localStorage reads
 - **Token refresh**: `client.setAuth(fetchToken, onAuthChange)` — Convex calls `fetchToken({ forceRefreshToken: true })` before JWT expiry; exchanges refresh token via `api.auth.signIn({ refreshToken })`; rotates refresh token if server returns a new one; failed refresh falls through to `null` triggering clean logout via `onAuthChange`
 - **Data scoping**: every query/mutation resolves `userId` via `ctx.auth.getUserIdentity().subject`
@@ -118,7 +119,7 @@ app/
     scheme/       SchemeCard, SchemeForm, SchemeStepRow
     ui/           AppHeader, EmptyState, ErrorBanner, LoadingSpinner
   composables/    useAuth.ts, useConvex.ts, usePaints.ts, useSchemes.ts,
-                  useProjects.ts, useImportExport.ts
+                  useProjects.ts, useImportExport.ts, useCatalogSearch.ts
   layouts/        default.vue
   middleware/     auth.global.ts
   pages/
