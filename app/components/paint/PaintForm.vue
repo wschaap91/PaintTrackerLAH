@@ -2,6 +2,7 @@
 const props = defineProps<{
   initialData?: Record<string, unknown>
   submitLabel?: string
+  catalogMode?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -39,7 +40,7 @@ function formatLabel(value: string): string {
 
 function handleSubmit() {
   const data: Record<string, unknown> = {
-    brand: effectiveBrand.value,
+    brand: props.catalogMode ? form.brand : effectiveBrand.value,
     name: form.name,
     paintType: form.paintType,
     hexColor: form.hexColor,
@@ -61,7 +62,12 @@ function handleSubmit() {
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Brand *</label>
-        <div class="flex gap-2">
+        <!-- catalog mode: read-only display -->
+        <p v-if="catalogMode" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+          {{ form.brand || '—' }}
+        </p>
+        <!-- normal mode: editable select + custom toggle -->
+        <div v-else class="flex gap-2">
           <select
             v-if="!isCustomBrand"
             v-model="form.brand"
@@ -89,7 +95,13 @@ function handleSubmit() {
 
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Paint Name *</label>
+        <!-- catalog mode: read-only display -->
+        <p v-if="catalogMode" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+          {{ form.name || '—' }}
+        </p>
+        <!-- normal mode: editable input -->
         <input
+          v-else
           v-model="form.name"
           type="text"
           required
@@ -100,7 +112,13 @@ function handleSubmit() {
 
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Type *</label>
+        <!-- catalog mode: read-only display -->
+        <p v-if="catalogMode" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+          {{ form.paintType ? formatLabel(form.paintType) : '—' }}
+        </p>
+        <!-- normal mode: editable select -->
         <select
+          v-else
           v-model="form.paintType"
           class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500"
         >
@@ -119,10 +137,16 @@ function handleSubmit() {
       </div>
     </div>
 
-    <!-- Colour picker -->
+    <!-- Colour picker / swatch -->
     <div>
       <label class="block text-sm font-medium text-gray-700 mb-1">Colour *</label>
-      <div class="flex items-center gap-3">
+      <!-- catalog mode: read-only color swatch + hex text -->
+      <div v-if="catalogMode" class="flex items-center gap-3">
+        <ColorSwatch :color="form.hexColor" />
+        <span class="text-sm font-mono text-gray-800">{{ form.hexColor || '—' }}</span>
+      </div>
+      <!-- normal mode: editable color picker -->
+      <div v-else class="flex items-center gap-3">
         <input
           v-model="form.hexColor"
           type="color"
@@ -145,7 +169,13 @@ function handleSubmit() {
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
           <label class="block text-xs text-gray-500 mb-1">Transparency</label>
+          <!-- catalog mode: read-only display -->
+          <p v-if="catalogMode" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+            {{ form.transparency ? formatLabel(form.transparency) : '—' }}
+          </p>
+          <!-- normal mode: editable select -->
           <select
+            v-else
             v-model="form.transparency"
             class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500"
           >
@@ -155,7 +185,13 @@ function handleSubmit() {
         </div>
         <div>
           <label class="block text-xs text-gray-500 mb-1">Finish</label>
+          <!-- catalog mode: read-only display -->
+          <p v-if="catalogMode" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+            {{ form.finish ? formatLabel(form.finish) : '—' }}
+          </p>
+          <!-- normal mode: editable select -->
           <select
+            v-else
             v-model="form.finish"
             class="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500"
           >
@@ -165,7 +201,13 @@ function handleSubmit() {
         </div>
         <div>
           <label class="block text-xs text-gray-500 mb-1">Special Type</label>
+          <!-- catalog mode: read-only display -->
+          <p v-if="catalogMode" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+            {{ form.specialType || '—' }}
+          </p>
+          <!-- normal mode: editable input -->
           <input
+            v-else
             v-model="form.specialType"
             type="text"
             placeholder="e.g. wash, effects"
@@ -181,7 +223,13 @@ function handleSubmit() {
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="block text-xs text-gray-500 mb-1">Barcode</label>
+          <!-- catalog mode: read-only display -->
+          <p v-if="catalogMode" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+            {{ form.barcode || '—' }}
+          </p>
+          <!-- normal mode: editable input -->
           <input
+            v-else
             v-model="form.barcode"
             type="text"
             placeholder="EAN / UPC"
@@ -190,7 +238,13 @@ function handleSubmit() {
         </div>
         <div>
           <label class="block text-xs text-gray-500 mb-1">Brand Code</label>
+          <!-- catalog mode: read-only display -->
+          <p v-if="catalogMode" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+            {{ form.brandCode || '—' }}
+          </p>
+          <!-- normal mode: editable input -->
           <input
+            v-else
             v-model="form.brandCode"
             type="text"
             placeholder="e.g. 21-01"
@@ -200,7 +254,7 @@ function handleSubmit() {
       </div>
     </div>
 
-    <!-- Notes -->
+    <!-- Notes (always editable) -->
     <div>
       <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
       <textarea
