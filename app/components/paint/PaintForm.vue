@@ -40,7 +40,7 @@ function formatLabel(value: string): string {
 
 function handleSubmit() {
   const data: Record<string, unknown> = {
-    brand: effectiveBrand.value,
+    brand: props.catalogMode ? form.brand : effectiveBrand.value,
     name: form.name,
     paintType: form.paintType,
     hexColor: form.hexColor,
@@ -62,46 +62,40 @@ function handleSubmit() {
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Brand *</label>
-        <template v-if="catalogMode">
-          <p class="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-            {{ form.brand || '—' }}
-          </p>
-        </template>
-        <template v-else>
-          <div class="flex gap-2">
-            <select
-              v-if="!isCustomBrand"
-              v-model="form.brand"
-              class="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500"
-            >
-              <option value="" disabled>Select brand</option>
-              <option v-for="b in brands" :key="b" :value="b">{{ b }}</option>
-            </select>
-            <input
-              v-else
-              v-model="customBrand"
-              type="text"
-              placeholder="Brand name"
-              class="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500"
-            >
-            <button
-              type="button"
-              class="px-3 py-2 text-xs text-accent-600 hover:text-accent-700 border border-gray-200 rounded-lg"
-              @click="isCustomBrand = !isCustomBrand"
-            >
-              {{ isCustomBrand ? 'List' : 'Custom' }}
-            </button>
-          </div>
-        </template>
+        <p v-if="catalogMode" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+          {{ form.brand || '—' }}
+        </p>
+        <div v-else class="flex gap-2">
+          <select
+            v-if="!isCustomBrand"
+            v-model="form.brand"
+            class="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500"
+          >
+            <option value="" disabled>Select brand</option>
+            <option v-for="b in brands" :key="b" :value="b">{{ b }}</option>
+          </select>
+          <input
+            v-else
+            v-model="customBrand"
+            type="text"
+            placeholder="Brand name"
+            class="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-500"
+          >
+          <button
+            type="button"
+            class="px-3 py-2 text-xs text-accent-600 hover:text-accent-700 border border-gray-200 rounded-lg"
+            @click="isCustomBrand = !isCustomBrand"
+          >
+            {{ isCustomBrand ? 'List' : 'Custom' }}
+          </button>
+        </div>
       </div>
 
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Paint Name *</label>
-        <template v-if="catalogMode">
-          <p class="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-            {{ form.name || '—' }}
-          </p>
-        </template>
+        <p v-if="catalogMode" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+          {{ form.name || '—' }}
+        </p>
         <input
           v-else
           v-model="form.name"
@@ -114,11 +108,9 @@ function handleSubmit() {
 
       <div>
         <label class="block text-sm font-medium text-gray-700 mb-1">Type *</label>
-        <template v-if="catalogMode">
-          <p class="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-            {{ formatLabel(form.paintType) || '—' }}
-          </p>
-        </template>
+        <p v-if="catalogMode" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+          {{ form.paintType ? formatLabel(form.paintType) : '—' }}
+        </p>
         <select
           v-else
           v-model="form.paintType"
@@ -139,34 +131,28 @@ function handleSubmit() {
       </div>
     </div>
 
-    <!-- Colour picker -->
+    <!-- Colour picker / swatch -->
     <div>
       <label class="block text-sm font-medium text-gray-700 mb-1">Colour *</label>
-      <template v-if="catalogMode">
-        <div class="flex items-center gap-3">
-          <ColorSwatch :color="form.hexColor" />
-          <span class="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm font-mono text-gray-700">
-            {{ form.hexColor }}
-          </span>
-        </div>
-      </template>
-      <template v-else>
-        <div class="flex items-center gap-3">
-          <input
-            v-model="form.hexColor"
-            type="color"
-            class="w-12 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5"
-          >
-          <input
-            v-model="form.hexColor"
-            type="text"
-            pattern="^#[0-9a-fA-F]{6}$"
-            placeholder="#000000"
-            class="w-32 rounded-lg border border-gray-200 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-accent-500"
-          >
-          <ColorSwatch :color="form.hexColor" />
-        </div>
-      </template>
+      <div v-if="catalogMode" class="flex items-center gap-3">
+        <ColorSwatch :color="form.hexColor" />
+        <span class="text-sm font-mono text-gray-800">{{ form.hexColor || '—' }}</span>
+      </div>
+      <div v-else class="flex items-center gap-3">
+        <input
+          v-model="form.hexColor"
+          type="color"
+          class="w-12 h-10 rounded-lg border border-gray-200 cursor-pointer p-0.5"
+        >
+        <input
+          v-model="form.hexColor"
+          type="text"
+          pattern="^#[0-9a-fA-F]{6}$"
+          placeholder="#000000"
+          class="w-32 rounded-lg border border-gray-200 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-accent-500"
+        >
+        <ColorSwatch :color="form.hexColor" />
+      </div>
     </div>
 
     <!-- Properties -->
@@ -175,11 +161,9 @@ function handleSubmit() {
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
           <label class="block text-xs text-gray-500 mb-1">Transparency</label>
-          <template v-if="catalogMode">
-            <p class="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-              {{ form.transparency ? formatLabel(form.transparency) : 'Not set' }}
-            </p>
-          </template>
+          <p v-if="catalogMode" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+            {{ form.transparency ? formatLabel(form.transparency) : '—' }}
+          </p>
           <select
             v-else
             v-model="form.transparency"
@@ -191,11 +175,9 @@ function handleSubmit() {
         </div>
         <div>
           <label class="block text-xs text-gray-500 mb-1">Finish</label>
-          <template v-if="catalogMode">
-            <p class="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-              {{ form.finish ? formatLabel(form.finish) : 'Not set' }}
-            </p>
-          </template>
+          <p v-if="catalogMode" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+            {{ form.finish ? formatLabel(form.finish) : '—' }}
+          </p>
           <select
             v-else
             v-model="form.finish"
@@ -207,11 +189,9 @@ function handleSubmit() {
         </div>
         <div>
           <label class="block text-xs text-gray-500 mb-1">Special Type</label>
-          <template v-if="catalogMode">
-            <p class="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm text-gray-700">
-              {{ form.specialType || 'Not set' }}
-            </p>
-          </template>
+          <p v-if="catalogMode" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+            {{ form.specialType || '—' }}
+          </p>
           <input
             v-else
             v-model="form.specialType"
@@ -229,11 +209,9 @@ function handleSubmit() {
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="block text-xs text-gray-500 mb-1">Barcode</label>
-          <template v-if="catalogMode">
-            <p class="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm font-mono text-gray-700">
-              {{ form.barcode || 'Not set' }}
-            </p>
-          </template>
+          <p v-if="catalogMode" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+            {{ form.barcode || '—' }}
+          </p>
           <input
             v-else
             v-model="form.barcode"
@@ -244,11 +222,9 @@ function handleSubmit() {
         </div>
         <div>
           <label class="block text-xs text-gray-500 mb-1">Brand Code</label>
-          <template v-if="catalogMode">
-            <p class="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-sm font-mono text-gray-700">
-              {{ form.brandCode || 'Not set' }}
-            </p>
-          </template>
+          <p v-if="catalogMode" class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+            {{ form.brandCode || '—' }}
+          </p>
           <input
             v-else
             v-model="form.brandCode"
@@ -260,7 +236,7 @@ function handleSubmit() {
       </div>
     </div>
 
-    <!-- Notes -->
+    <!-- Notes (always editable) -->
     <div>
       <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
       <textarea
