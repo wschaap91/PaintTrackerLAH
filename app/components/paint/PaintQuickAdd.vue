@@ -58,14 +58,20 @@ async function lookup(query: { code?: string, barcode?: string }) {
   }
 
   // Fallback to live catalog
-  const q = query.code ?? query.barcode ?? ''
-  const results = await client.query(api.catalogSync.searchCatalog, { q })
-  const result = results[0]
-  if (result) {
-    matchedPaint.value = result
+  try {
+    const result = await client.query(api.catalogSync.lookupCatalogByCode, {
+      code: query.code,
+      barcode: query.barcode,
+    })
+    if (result) {
+      matchedPaint.value = result
+    }
+    else {
+      lookupError.value = 'No paint matches that code. You can add it manually below.'
+    }
   }
-  else {
-    lookupError.value = 'No paint matches that code. You can add it manually below.'
+  catch {
+    lookupError.value = 'Catalog lookup failed. You can add it manually below.'
   }
 }
 
