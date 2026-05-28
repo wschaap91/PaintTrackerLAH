@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { api } from '../../../convex/_generated/api'
-import { lookupKnownPaint } from '~/utils/known-paints'
+import type { Id } from '../../../convex/_generated/dataModel'
 
-interface KnownPaintMatch {
+interface CatalogMatch {
+  _id?: Id<'catalogPaints'>
   brand: string
   name: string
   paintType: string
-  hexColor: string
+  hexColor: string | null
   brandCode?: string | null
   barcode?: string | null
   transparency?: string | null
@@ -23,7 +24,7 @@ const activeTab = ref<Tab>('code')
 
 const codeInput = ref('')
 const lookupError = ref('')
-const matchedPaint = ref<KnownPaintMatch | null>(null)
+const matchedPaint = ref<CatalogMatch | null>(null)
 const lastScannedCode = ref('')
 
 const manualForm = reactive({
@@ -47,18 +48,21 @@ async function lookup(query: { code?: string, barcode?: string }) {
       barcode: query.barcode,
     })
     if (existing) {
-      matchedPaint.value = existing
+      const { brand, name, paintType, hexColor, brandCode, barcode, transparency, finish, specialType } = existing
+      matchedPaint.value = { brand, name, paintType, hexColor, brandCode, barcode, transparency, finish, specialType }
       return
     }
   }
   catch {
-    // Fall through to known-paints catalog
+    // Fall through to live catalog
   }
 
-  // Fallback to static known-paints catalog
-  const known = lookupKnownPaint(query)
-  if (known) {
-    matchedPaint.value = known
+  // Fallback to live catalog
+  const q = query.code ?? query.barcode ?? ''
+  const results = await client.query(api.catalogSync.searchCatalog, { q })
+  const result = results[0]
+  if (result) {
+    matchedPaint.value = result
   }
   else {
     lookupError.value = 'No paint matches that code. You can add it manually below.'
@@ -83,7 +87,7 @@ async function confirmMatch() {
       brand: matchedPaint.value.brand,
       name: matchedPaint.value.name,
       paintType: matchedPaint.value.paintType,
-      hexColor: matchedPaint.value.hexColor,
+      hexColor: matchedPaint.value.hexColor ?? '#888888',
       status: 'owned',
       notes: null,
       transparency: matchedPaint.value.transparency ?? null,
@@ -91,6 +95,7 @@ async function confirmMatch() {
       specialType: matchedPaint.value.specialType ?? null,
       barcode: matchedPaint.value.barcode ?? null,
       brandCode: matchedPaint.value.brandCode ?? null,
+      catalogPaintId: matchedPaint.value._id,
     })
     emit('close')
   }
@@ -261,7 +266,7 @@ const brands = ['Citadel', 'Vallejo', 'Army Painter', 'Scale75', 'AK Interactive
           class="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 p-4"
         >
           <div class="flex items-start gap-3 mb-3">
-            <ColorSwatch :color="matchedPaint.hexColor" />
+            <ColorSwatch :color="matchedPaint.hexColor ?? '#888888'" />
             <div class="flex-1">
               <p class="text-sm font-medium text-gray-900">{{ matchedPaint.name }}</p>
               <p class="text-xs text-gray-500">{{ matchedPaint.brand }} · {{ formatLabel(matchedPaint.paintType) }}</p>
