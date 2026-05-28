@@ -119,6 +119,7 @@ export const bulkCreate = mutation({
       specialType: v.union(v.string(), v.null()),
       barcode: v.union(v.string(), v.null()),
       brandCode: v.union(v.string(), v.null()),
+      catalogPaintId: v.optional(v.id('catalogPaints')),
     })),
     onDuplicate: v.union(v.literal('skip'), v.literal('update')),
   },

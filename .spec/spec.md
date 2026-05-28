@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-28 (after PR #37 — auth guard fix, NUXT_PUBLIC_CONVEX_URL support)
+Last updated: 2026-05-28 (after PR #44 — PaintForm catalogMode + QuickAdd manual tab removed)
 
 ## Architecture
 
@@ -75,7 +75,7 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 - `create({ name, brand, hexColor, paintType?, status?, barcode?, notes?, quantity?, catalogPaintId? })` → `Id<"paints">`
 - `update({ id, ...fields })` → `void`
 - `remove({ id })` → `void`
-- `bulkCreate({ paints[] })` → `{ created, skipped }` — dedupes by name+brand
+- `bulkCreate({ paints[], onDuplicate: 'skip' | 'update' })` → `{ added, skipped, updated }` — dedupes by name+brand; each paint accepts `catalogPaintId?`
 - `search({ query })` → `Paint[]`
 
 **schemes.ts** (authenticated unless noted)
@@ -106,8 +106,9 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 - **Token refresh**: `client.setAuth(fetchToken, onAuthChange)` — Convex calls `fetchToken({ forceRefreshToken: true })` before JWT expiry; exchanges refresh token via `api.auth.signIn({ refreshToken })`; rotates refresh token if server returns a new one; failed refresh falls through to `null` triggering clean logout via `onAuthChange`
 - **Data scoping**: every query/mutation resolves `userId` via `ctx.auth.getUserIdentity().subject`
 - **Route guard**: `auth.global.ts` middleware — public exemptions: `/auth/**`, `/s/**`, `/discover`
-- **Catalog pre-fill**: `PaintCatalogSearch` renders a live search dropdown (via `useCatalogSearch`). On selection, `onCatalogSelect` in `add.vue` populates `catalogInitialData` (pre-fills the form) and stores `selectedCatalogPaintId`. On submit, the ID is conditionally spread into `paints.create` as `catalogPaintId`, then cleared on success to prevent stale reattachment on retry.
+- **Catalog pre-fill**: `PaintCatalogSearch` renders a live search dropdown (via `useCatalogSearch`). On selection, `onCatalogSelect` in `add.vue` populates `catalogInitialData` (pre-fills the form), stores `selectedCatalogPaintId`, and passes `:catalog-mode="!!catalogInitialData"` to `PaintForm`. When `catalogMode` is true, brand, name, paintType, hexColor, transparency, finish, specialType, barcode, and brandCode render as read-only styled fields (grey bg); status and notes remain editable; the custom brand toggle is hidden. On submit, the ID is conditionally spread into `paints.create` as `catalogPaintId`, then cleared on success to prevent stale reattachment on retry.
 - **`useCatalogPaint`**: subscribes to a single catalog paint by `Id<'catalogPaints'>` via `client.onUpdate`; returns `{ data, isLoading, error }` — `error` surfaces auth expiry or network failures that are otherwise indistinguishable from "no ID given"
+- **Quick Add**: `PaintQuickAdd` offers Code and Scan tabs only (Manual tab removed). Code tab accepts a brand code and looks up a matching catalog paint; Scan tab uses the barcode scanner via `html5-qrcode`. On a successful match, a confirmation card is displayed and `addPaint` is called directly. Error messages direct users to the full Add Paint page rather than offering manual input.
 - **Error handling**: try/catch/finally with local `error` ref + `isLoading` ref in page components
 - **Styling**: Tailwind only — no inline styles, no per-component CSS; custom accent palette
 

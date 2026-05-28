@@ -29,3 +29,17 @@ Review findings that scored 50–79 — real but below the noise threshold. Thes
 | Score | File | Finding | Suggestion |
 |-------|------|---------|------------|
 | 50 | convex.client.ts:16,30 | Two `client.setAuth(tokenGetter, onInvalidate)` call sites have identical function bodies — DRY violation | Extract `tokenGetter` and `onInvalidate` as named constants at the top of the plugin; both call sites become one-liners |
+
+## PR #35 — feat(paint): replace static catalog fallback with live searchCatalog (T9) (2026-05-28)
+
+### Pattern: silent-failure-hunter (1 finding)
+
+| Score | File | Finding | Suggestion |
+|-------|------|---------|------------|
+| 50 | PaintQuickAdd.vue:73 | `handleScanned` calls `lookup()` as fire-and-forget; the PR makes `lookup()` able to throw (new unguarded `searchCatalog` call), so rejections on the barcode scan path become fully unhandled | Fix the root cause first (add try/catch around `searchCatalog`) — that resolves this without touching `handleScanned` |
+
+### Pattern: type-design-reviewer (1 finding)
+
+| Score | File | Finding | Suggestion |
+|-------|------|---------|------------|
+| 65 | PaintQuickAdd.vue:3 | `CatalogMatch` interface fuses two distinct sources (user paint, no `_id`; catalog result, always has `_id`) via optional `_id` — future code has no type-level signal about which branch it is in | Replace with a discriminated union `CatalogMatchFromUser \| CatalogMatchFromCatalog` with a `source` field; `confirmMatch` narrows on `source` to pass `catalogPaintId` correctly |
