@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-27 (after PRD v5 cycle, Wave 2 — catalogSync.ts + paints.catalogPaintId)
+Last updated: 2026-05-28 (after PRD v5 cycle, Wave 3 — crons.ts nightly catalog sync)
 
 ## Architecture
 
@@ -132,7 +132,7 @@ app/
   utils/          known-paints.ts  (~150 static paint entries)
 convex/
   schema.ts, auth.ts, auth.config.js, http.ts
-  paints.ts, schemes.ts, projects.ts, migrations.ts, catalogSync.ts
+  paints.ts, schemes.ts, projects.ts, migrations.ts, catalogSync.ts, crons.ts
   _generated/     (auto-generated — do not edit)
 ```
 
