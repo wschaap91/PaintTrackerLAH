@@ -33,6 +33,7 @@ export function useCatalogSearch() {
         isLoading.value = false
       },
       () => {
+        results.value = undefined
         isLoading.value = false
       },
     )
