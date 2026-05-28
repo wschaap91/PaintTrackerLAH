@@ -15,7 +15,7 @@ const { addPaint } = usePaints()
 const state = ref<UIState>('search')
 
 // Catalog search
-const { query, results, isLoading } = useCatalogSearch()
+const { query, results, isLoading, error: searchError } = useCatalogSearch()
 const inputValue = ref('')
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -32,7 +32,7 @@ onUnmounted(() => {
   if (debounceTimer !== null) clearTimeout(debounceTimer)
 })
 
-const showResults = computed(() => inputValue.value.trim().length >= 2)
+const showResults = computed(() => query.value.trim().length >= 2)
 
 // Selected catalog paint
 const selectedPaint = ref<CatalogPaint | null>(null)
@@ -51,6 +51,7 @@ function selectCatalogPaint(paint: CatalogPaint) {
     finish: paint.finish,
     transparency: paint.transparency,
     brandCode: paint.brandCode,
+    barcode: paint.barcode,
     status: 'owned',
     notes: '',
   }
@@ -93,6 +94,7 @@ async function handleSubmit(data: Record<string, unknown>) {
     const catalogId = selectedCatalogPaintId.value
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const id = await addPaint({ ...data, ...(catalogId !== undefined ? { catalogPaintId: catalogId } : {}) } as any)
+    selectedCatalogPaintId.value = undefined
     router.push(`/paints/${id}`)
   }
   catch {
@@ -150,6 +152,10 @@ async function handleSubmit(data: Record<string, unknown>) {
               </li>
             </ul>
           </div>
+        </div>
+
+        <div v-if="searchError" class="mt-3 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+          {{ searchError.message }}
         </div>
 
         <div class="mt-4 pt-4 border-t border-gray-100">
