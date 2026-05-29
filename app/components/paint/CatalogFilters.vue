@@ -12,7 +12,7 @@ defineProps<{
 }>()
 
 const brands = ['', 'Citadel', 'Vallejo', 'Army Painter', 'Scale75', 'AK Interactive', 'ProAcryl']
-const colorFamilies = ['', 'Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Pink', 'Brown', 'Black', 'White', 'Grey', 'Metallic']
+const colorFamilies = ['', 'red', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'brown', 'black', 'white', 'grey', 'metallic']
 
 watch(() => filters.value.brand, () => {
   filters.value.range = ''
@@ -63,7 +63,7 @@ watch(() => filters.value.brand, () => {
         v-model="filters.colorFamily"
         class="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-accent-500"
       >
-        <option v-for="c in colorFamilies" :key="c" :value="c">{{ c || 'All Colors' }}</option>
+        <option v-for="c in colorFamilies" :key="c" :value="c">{{ c ? c.charAt(0).toUpperCase() + c.slice(1) : 'All Colors' }}</option>
       </select>
     </div>
 
