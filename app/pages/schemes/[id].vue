@@ -18,6 +18,7 @@ const origin = import.meta.client ? window.location.origin : ''
 async function togglePublic() {
   if (!scheme.value || isTogglingPublic.value) return
   isTogglingPublic.value = true
+  error.value = ''
   try {
     await setPublic({ id, isPublic: !scheme.value.isPublic })
   }
