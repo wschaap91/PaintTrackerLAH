@@ -1,0 +1,249 @@
+import { api } from '../../convex/_generated/api'
+import type { Doc, Id } from '../../convex/_generated/dataModel'
+import type { PaginationResult } from 'convex/server'
+
+export type CatalogPaint = Doc<'catalogPaints'>
+
+const PAGE_SIZE = 25
+
+export function useCatalogBrowse() {
+  const client = useConvexClient()
+
+  // ---------------------------------------------------------------------------
+  // Filter state
+  // ---------------------------------------------------------------------------
+  const filters = reactive({
+    brand: '',
+    range: '',
+    colorFamily: '',
+    q: '',
+    hideOwned: false,
+  })
+
+  // ---------------------------------------------------------------------------
+  // Output state
+  // ---------------------------------------------------------------------------
+  const results = ref<CatalogPaint[]>([])
+  const isLoading = ref(false)
+  const error = ref<Error | null>(null)
+  const hasMore = ref(false)
+  const ownedIds = ref<Set<string>>(new Set())
+
+  // ---------------------------------------------------------------------------
+  // Internal cursor / subscription tracking
+  // ---------------------------------------------------------------------------
+  let continueCursor: string | null = null
+  let pageUnsubs: Array<() => void> = []
+  let ownedUnsub: (() => void) | null = null
+  let disposed = false
+
+  // Debounce timer for text query
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+  // ---------------------------------------------------------------------------
+  // Owned IDs subscription (always active)
+  // ---------------------------------------------------------------------------
+  function subscribeOwnedIds() {
+    if (ownedUnsub) {
+      ownedUnsub()
+      ownedUnsub = null
+    }
+    if (disposed) return
+    ownedUnsub = client.onUpdate(
+      api.paints.listOwnedCatalogIds,
+      {},
+      (data: Id<'catalogPaints'>[]) => {
+        ownedIds.value = new Set(data as string[])
+      },
+      (_err: Error) => {
+        // Non-fatal: keep previous ownedIds
+      },
+    )
+  }
+
+  // ---------------------------------------------------------------------------
+  // Reset helpers
+  // ---------------------------------------------------------------------------
+  function resetPagination() {
+    pageUnsubs.forEach(u => u())
+    pageUnsubs = []
+    continueCursor = null
+    results.value = []
+    hasMore.value = false
+  }
+
+  // ---------------------------------------------------------------------------
+  // Browse mode: subscribe to a single page by cursor
+  // ---------------------------------------------------------------------------
+  function subscribeBrowsePage(cursor: string | null, append: boolean) {
+    if (disposed) return
+    if (!append) {
+      resetPagination()
+    }
+    isLoading.value = true
+    error.value = null
+
+    const brand = filters.brand || undefined
+    const range = filters.range || undefined
+    const colorFamily = filters.colorFamily || undefined
+
+    const unsub = client.onUpdate(
+      api.catalogSync.browseCatalog,
+      {
+        brand,
+        range,
+        colorFamily,
+        paginationOpts: { numItems: PAGE_SIZE, cursor },
+      },
+      (data: PaginationResult<CatalogPaint>) => {
+        if (!append) {
+          results.value = data.page
+        } else {
+          results.value = [...results.value, ...data.page]
+        }
+        continueCursor = data.isDone ? null : data.continueCursor
+        hasMore.value = !data.isDone
+        isLoading.value = false
+      },
+      (err: Error) => {
+        error.value = err
+        isLoading.value = false
+      },
+    )
+    pageUnsubs.push(unsub)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Search mode subscription
+  // ---------------------------------------------------------------------------
+  let searchUnsub: (() => void) | null = null
+
+  function subscribeSearch(q: string) {
+    if (searchUnsub) {
+      searchUnsub()
+      searchUnsub = null
+    }
+    resetPagination()
+    if (disposed) return
+
+    isLoading.value = true
+    error.value = null
+
+    const brand = filters.brand || undefined
+    const colorFamily = filters.colorFamily || undefined
+
+    searchUnsub = client.onUpdate(
+      api.catalogSync.searchCatalog,
+      {
+        q,
+        brand,
+        colorFamily,
+        limit: PAGE_SIZE,
+      },
+      (data: CatalogPaint[]) => {
+        results.value = data
+        hasMore.value = false
+        isLoading.value = false
+      },
+      (err: Error) => {
+        error.value = err
+        isLoading.value = false
+      },
+    )
+  }
+
+  function teardownSearch() {
+    if (searchUnsub) {
+      searchUnsub()
+      searchUnsub = null
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Mode switching logic
+  // ---------------------------------------------------------------------------
+  function isSearchMode() {
+    return filters.q.trim().length >= 2
+  }
+
+  function refresh() {
+    if (isSearchMode()) {
+      teardownSearch()
+      subscribeSearch(filters.q.trim())
+    } else {
+      teardownSearch()
+      subscribeBrowsePage(null, false)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // loadMore (browse mode only)
+  // ---------------------------------------------------------------------------
+  function loadMore() {
+    if (isSearchMode()) return
+    if (!hasMore.value || continueCursor === null) return
+    subscribeBrowsePage(continueCursor, true)
+  }
+
+  // ---------------------------------------------------------------------------
+  // Computed results — apply hideOwned client-side
+  // ---------------------------------------------------------------------------
+  const filteredResults = computed<CatalogPaint[]>(() => {
+    if (!filters.hideOwned) return results.value
+    return results.value.filter(p => !ownedIds.value.has(p._id as string))
+  })
+
+  // ---------------------------------------------------------------------------
+  // Watchers
+  // ---------------------------------------------------------------------------
+
+  // Watch non-text filters (brand, range, colorFamily, hideOwned)
+  watch(
+    () => [filters.brand, filters.range, filters.colorFamily] as const,
+    ([newBrand], [oldBrand]) => {
+      // If brand changes, reset range
+      if (newBrand !== oldBrand) {
+        filters.range = ''
+      }
+      refresh()
+    },
+  )
+
+  // Watch text query with debounce
+  watch(
+    () => filters.q,
+    () => {
+      if (debounceTimer) clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(() => {
+        refresh()
+      }, 300)
+    },
+  )
+
+  // Initial load
+  subscribeOwnedIds()
+  isLoading.value = true
+  subscribeBrowsePage(null, false)
+
+  // ---------------------------------------------------------------------------
+  // Cleanup
+  // ---------------------------------------------------------------------------
+  onScopeDispose(() => {
+    disposed = true
+    if (debounceTimer) clearTimeout(debounceTimer)
+    pageUnsubs.forEach(u => u())
+    pageUnsubs = []
+    teardownSearch()
+    if (ownedUnsub) ownedUnsub()
+  })
+
+  return {
+    filters,
+    results: filteredResults,
+    isLoading,
+    error,
+    ownedIds,
+    loadMore,
+    hasMore,
+  }
+}
