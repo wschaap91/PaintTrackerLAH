@@ -1,6 +1,7 @@
-import { internalMutation, internalAction, query } from './_generated/server'
+import { internalMutation, internalAction, query, mutation } from './_generated/server'
 import { internal } from './_generated/api'
 import { v } from 'convex/values'
+import { paginationOptsValidator } from 'convex/server'
 import { classifyColorFamily } from './colorFamily'
 
 // Convex actions run in a custom environment without @types/node;
@@ -97,6 +98,8 @@ export const searchCatalog = query({
   args: {
     q: v.string(),
     brand: v.optional(v.string()),
+    range: v.optional(v.string()),
+    colorFamily: v.optional(v.string()),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
@@ -109,12 +112,100 @@ export const searchCatalog = query({
     const results = await ctx.db
       .query('catalogPaints')
       .withSearchIndex('search_name', q => {
-        const withText = q.search('name', args.q)
-        return args.brand ? withText.eq('brand', args.brand) : withText
+        let sq = q.search('name', args.q)
+        if (args.brand) sq = sq.eq('brand', args.brand)
+        if (args.range) sq = sq.eq('range', args.range)
+        if (args.colorFamily) sq = sq.eq('colorFamily', args.colorFamily)
+        return sq
       })
       .take(limit)
 
     return results
+  },
+})
+
+// ---------------------------------------------------------------------------
+// browseCatalog — paginated catalog browsing (auth required)
+// ---------------------------------------------------------------------------
+
+export const browseCatalog = query({
+  args: {
+    brand: v.optional(v.string()),
+    range: v.optional(v.string()),
+    colorFamily: v.optional(v.string()),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Unauthenticated')
+
+    let dbQuery
+    if (args.brand && args.range) {
+      dbQuery = ctx.db
+        .query('catalogPaints')
+        .withIndex('by_brand_range', q =>
+          q.eq('brand', args.brand!).eq('range', args.range!),
+        )
+    } else if (args.brand) {
+      dbQuery = ctx.db
+        .query('catalogPaints')
+        .withIndex('by_brand_range', q => q.eq('brand', args.brand!))
+    } else {
+      dbQuery = ctx.db.query('catalogPaints')
+    }
+
+    if (args.colorFamily) {
+      dbQuery = dbQuery.filter(q => q.eq(q.field('colorFamily'), args.colorFamily!))
+    }
+
+    return await dbQuery.paginate(args.paginationOpts)
+  },
+})
+
+// ---------------------------------------------------------------------------
+// addFromCatalog — create owned paint from catalog entry (auth required)
+// ---------------------------------------------------------------------------
+
+export const addFromCatalog = mutation({
+  args: {
+    catalogPaintId: v.id('catalogPaints'),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) throw new Error('Unauthenticated')
+
+    const catalogPaint = await ctx.db.get(args.catalogPaintId)
+    if (!catalogPaint) throw new Error(`Catalog paint ${args.catalogPaintId} not found`)
+
+    // Check for duplicate: user already owns a paint linked to this catalog entry
+    const existing = await ctx.db
+      .query('paints')
+      .withIndex('by_user', q => q.eq('userId', identity.subject))
+      .filter(q => q.eq(q.field('catalogPaintId'), args.catalogPaintId))
+      .first()
+
+    if (existing) {
+      throw new Error(
+        `You already own "${catalogPaint.brand} ${catalogPaint.name}" (added as "${existing.name}"). ` +
+          `To add a second pot, use the manual add form.`,
+      )
+    }
+
+    return await ctx.db.insert('paints', {
+      userId: identity.subject,
+      brand: catalogPaint.brand,
+      name: catalogPaint.name,
+      paintType: catalogPaint.paintType,
+      hexColor: catalogPaint.hexColor ?? '#888888',
+      status: 'owned',
+      notes: null,
+      transparency: catalogPaint.transparency ?? null,
+      finish: catalogPaint.finish ?? null,
+      specialType: catalogPaint.specialType ?? null,
+      barcode: catalogPaint.barcode ?? null,
+      brandCode: catalogPaint.brandCode,
+      catalogPaintId: args.catalogPaintId,
+    })
   },
 })
 
