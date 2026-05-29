@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-29 (after PRD v9 cycle — catalog browse composable + backend queries)
+Last updated: 2026-05-29 (after PRD v10 cycle — catalog browser page + navigation)
 
 ## Architecture
 
@@ -97,6 +97,7 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 - `getCatalogPaint({ id })` → `CatalogPaint | null` — auth required
 - `lookupCatalogByCode({ code?, barcode? })` → `CatalogPaint | null` — auth required; `code` uses `by_brand_code` index (exact match); `barcode` uses filter scan
 - `addFromCatalog({ catalogPaintId })` → `Id<"paints">` — auth required; creates owned paint from catalog entry; throws if user already owns a paint with same `catalogPaintId`
+- `listCatalogRanges({ brand? })` → `string[]` — auth required; returns distinct range values from `catalogPaints`, optionally filtered by brand using `by_brand_range` index
 - `internal.upsertCatalogPaint(...)` — internalMutation; upserts by `openMiniPaintsId`, fallback brand+brandCode for pre-sync rows; always sets `syncedAt`; computes and stores `colorFamily` via `classifyColorFamily`
 - `internal.syncCatalog({})` — internalAction; cursor-paged HTTP fetch from OpenMiniPaints API; scheduled nightly via `crons.ts`; returns `{ synced, errors }`
 - `internal.backfillColorFamily({})` — internalAction; paginates all `catalogPaints` rows and calls `backfillColorFamilyBatch` to fill missing `colorFamily` values
@@ -108,7 +109,7 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 
 - **Composable-only data access**: `useConvexQuery`, `useConvexMutation`, `useConvexClient` wrap all Convex calls (ADR-008); `useCatalogSearch`, `useCatalogPaint`, and `useCatalogBrowse` use `client.onUpdate` directly for real-time subscriptions with explicit lifecycle management (immediate watch, disposed guard via `onScopeDispose`, stale `data` cleared on unsubscribe or error, `error` ref exposed to callers)
 - **Domain composables**: `usePaints`, `useSchemes`, `useProjects`, `useImportExport`
-- **`useCatalogBrowse`**: reactive catalog browsing composable; auto-switches between `browseCatalog` (no text query) and `searchCatalog` (≥2 chars) with 300ms debounce; tracks owned paint IDs via `listOwnedCatalogIds`; client-side `hideOwned` filtering; infinite scroll via `loadMore()` with cursor-based pagination (25 items/page); returns `{ filters, results, isLoading, error, ownedIds, loadMore, hasMore }`
+- **`useCatalogBrowse`**: reactive catalog browsing composable; auto-switches between `browseCatalog` (no text query) and `searchCatalog` (≥2 chars) with 300ms debounce; tracks owned paint IDs via `listOwnedCatalogIds`; client-side `hideOwned` filtering; infinite scroll via `loadMore()` with cursor-based pagination (25 items/page); dedicated `listCatalogRanges` subscription provides complete range options for the selected brand; `hasMore` resets on load-more errors to prevent infinite error loops; returns `{ filters, results, isLoading, error, ownedIds, loadMore, hasMore, availableRanges }`
 - **Auth state**: `useState('auth:isAuthenticated')` as reactive Nuxt state; JWT + refresh token persisted in `localStorage`; in-memory `authToken`/`refreshToken` variables serve as the authoritative fast-path so `fetchToken` avoids synchronous localStorage reads; `signIn`/`signUp` throw `'Backend not available — check CONVEX_URL configuration'` if `$convex` is undefined; `signOut` degrades gracefully (skips remote call, still clears local state)
 - **Token refresh**: `client.setAuth(fetchToken, onAuthChange)` — Convex calls `fetchToken({ forceRefreshToken: true })` before JWT expiry; exchanges refresh token via `api.auth.signIn({ refreshToken })`; rotates refresh token if server returns a new one; failed refresh falls through to `null` triggering clean logout via `onAuthChange`
 - **Data scoping**: every query/mutation resolves `userId` via `ctx.auth.getUserIdentity().subject`
@@ -138,7 +139,7 @@ app/
     auth/         login.vue, register.vue
     s/            [slug].vue  (public)
     discover.vue              (public)
-    paints/       index.vue, add.vue, [id].vue
+    paints/       index.vue, add.vue, catalog.vue, [id].vue
     schemes/      index.vue, [id].vue
     projects/     index.vue, [id].vue
   plugins/        convex.client.ts
