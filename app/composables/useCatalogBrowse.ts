@@ -5,6 +5,7 @@ import type { PaginationResult } from 'convex/server'
 export type CatalogPaint = Doc<'catalogPaints'>
 
 const PAGE_SIZE = 25
+const SEARCH_FETCH_SIZE = 100
 
 export function useCatalogBrowse() {
   const client = useConvexClient()
@@ -38,6 +39,10 @@ export function useCatalogBrowse() {
   let ownedUnsub: (() => void) | null = null
   let rangesUnsub: (() => void) | null = null
   let disposed = false
+
+  // Search mode chunking state
+  const allSearchResults = ref<CatalogPaint[]>([])
+  const searchChunkIndex = ref(0)
 
   // Debounce timer for text query
   let debounceTimer: ReturnType<typeof setTimeout> | null = null
@@ -94,6 +99,8 @@ export function useCatalogBrowse() {
     continueCursor = null
     results.value = []
     hasMore.value = false
+    allSearchResults.value = []
+    searchChunkIndex.value = 0
   }
 
   // ---------------------------------------------------------------------------
@@ -171,11 +178,14 @@ export function useCatalogBrowse() {
         q,
         brand,
         colorFamily,
-        limit: PAGE_SIZE,
+        limit: SEARCH_FETCH_SIZE,
       },
       (data: CatalogPaint[]) => {
-        results.value = data
-        hasMore.value = false
+        allSearchResults.value = data
+        // Re-slice to current chunk index (subscription may push updated data)
+        const revealedCount = (searchChunkIndex.value + 1) * PAGE_SIZE
+        results.value = data.slice(0, revealedCount)
+        hasMore.value = data.length > revealedCount
         isLoading.value = false
       },
       (err: Error) => {
@@ -210,10 +220,17 @@ export function useCatalogBrowse() {
   }
 
   // ---------------------------------------------------------------------------
-  // loadMore (browse mode only)
+  // loadMore — search mode: reveal next chunk; browse mode: fetch next page
   // ---------------------------------------------------------------------------
   function loadMore() {
-    if (isSearchMode()) return
+    if (isSearchMode()) {
+      if (!hasMore.value) return
+      searchChunkIndex.value++
+      const revealedCount = (searchChunkIndex.value + 1) * PAGE_SIZE
+      results.value = allSearchResults.value.slice(0, revealedCount)
+      hasMore.value = allSearchResults.value.length > revealedCount
+      return
+    }
     if (!hasMore.value || continueCursor === null) return
     subscribeBrowsePage(continueCursor, true)
   }
