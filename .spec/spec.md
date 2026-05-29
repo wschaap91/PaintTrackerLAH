@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-29 (after PRD v8 cycle — catalog schema + color family foundation)
+Last updated: 2026-05-29 (after t6 paint-filters fix — accessible labels + formatLabel dead-code fix)
 
 ## Architecture
 
@@ -120,7 +120,7 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 ```
 app/
   components/
-    paint/        PaintCard, PaintCatalogSearch, PaintForm, PaintList, PaintQuickAdd, PaintSearch
+    paint/        PaintBarcodeScanner, PaintCard, PaintCatalogSearch, PaintFilters, PaintForm, PaintImportExport, PaintQuickAdd
     project/      ProjectCard, ProjectForm, ProjectPaintRow, ProjectSchemeRow
     scheme/       SchemeCard, SchemeForm, SchemeStepRow
     ui/           AppHeader, EmptyState, ErrorBanner, LoadingSpinner
