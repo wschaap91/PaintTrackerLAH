@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-29 (after PR #74 — infinite scroll for catalog browse and search)
+Last updated: 2026-05-29 (after PR #77 — deferred review findings fix)
 
 ## Architecture
 
@@ -30,7 +30,7 @@ Nuxt 4 SPA frontend communicates with Convex Cloud exclusively through a single 
 { userId: string, name: string, brand: string, hexColor: string,
   paintType?: string, status?: string, barcode?: string,
   notes?: string, quantity?: number, catalogPaintId?: Id<"catalogPaints"> }
-// indexes: by_user, by_brand, by_barcode
+// indexes: by_user, by_brand, by_barcode, by_catalog_paint
 
 // schemes — painting recipes
 { userId: string, name: string, description?: string,
@@ -61,7 +61,7 @@ Nuxt 4 SPA frontend communicates with Convex Cloud exclusively through a single 
   finish: string | null, transparency: string | null,
   colorFamily?: string,
   specialType?: string | null, barcode?: string | null,
-  openMiniPaintsId?: string, syncedAt?: number }
+  openMiniPaintsId?: string, syncedAt?: number | null }
 // indexes: by_brand, by_range, by_brand_code, by_open_mini_paints_id, by_brand_range, by_color_family
 // searchIndex: search_name (searchField: name, filterFields: [brand, range, colorFamily])
 ```
