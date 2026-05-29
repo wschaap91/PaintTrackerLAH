@@ -19,6 +19,7 @@ async function togglePublic() {
   if (!scheme.value || isTogglingPublic.value) return
   isTogglingPublic.value = true
   try {
+    error.value = ''
     await setPublic({ id, isPublic: !scheme.value.isPublic })
   }
   catch {
