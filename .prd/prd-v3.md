@@ -1,6 +1,6 @@
 ---
 version: 3
-status: draft
+status: archived
 date: 2026-05-27
 author: Wouter Schaap
 previous: prd-v2.md
