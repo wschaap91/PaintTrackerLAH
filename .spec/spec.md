@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-29 (after PR #54 — catalog browse UI components)
+Last updated: 2026-05-29 (after PR #54 — catalog browse UI components + t6 paint-filters fix)
 
 ## Architecture
 
