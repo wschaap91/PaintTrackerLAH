@@ -25,3 +25,17 @@ Review findings that scored 50-79 — real but below the noise threshold. These 
 |-------|------|---------|------------|
 | 70 | convex/schema.ts:20-27 | `catalogPaintId` added to `paints` has no reverse index — any "which user paints link to catalog entry X?" query requires a full table scan | Add `.index('by_catalog_paint', ['catalogPaintId'])` to the `paints` table |
 | 60 | convex/schema.ts:79 | `by_range` index on a single `range` field returns cross-brand results; paint ranges are brand-scoped by nature | Replace with compound `.index('by_brand_range', ['brand', 'range'])` to support realistic queries |
+
+## PR #53 — T1: schema + color family foundation (2026-05-29)
+
+### Pattern: code-quality-reviewer (1 finding)
+
+| Score | File | Finding | Suggestion |
+|-------|------|---------|------------|
+| 60 | convex/colorFamily.ts:19 | Dead `if (h < 20) return 'orange'` branch — after `h < 10` guard, hues 10–19 always reach the `h < 46` branch instead; accidentally correct but misleading | Remove the dead `if (h < 20) return 'orange'` line |
+
+### Pattern: type-design-reviewer (1 finding)
+
+| Score | File | Finding | Suggestion |
+|-------|------|---------|------------|
+| 65 | convex/colorFamily.ts:3 | `classifyColorFamily()` returns plain `string` instead of a string literal union of the 12 known color families — loses compile-time exhaustiveness checking and allows schema to store arbitrary strings | Define `ColorFamily` type as `'red' \| 'orange' \| ... \| 'metallic'`, use as return type, and update schema to use `v.union(v.literal(...), ...)` |
