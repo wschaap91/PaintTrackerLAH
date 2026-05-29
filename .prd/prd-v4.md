@@ -43,3 +43,23 @@ Review findings that scored 50–79 — real but below the noise threshold. Thes
 | Score | File | Finding | Suggestion |
 |-------|------|---------|------------|
 | 65 | PaintQuickAdd.vue:3 | `CatalogMatch` interface fuses two distinct sources (user paint, no `_id`; catalog result, always has `_id`) via optional `_id` — future code has no type-level signal about which branch it is in | Replace with a discriminated union `CatalogMatchFromUser \| CatalogMatchFromCatalog` with a `source` field; `confirmMatch` narrows on `source` to pass `catalogPaintId` correctly |
+
+## PR #72 — feat: add Army Painter name normalization migration (#65) (2026-05-29)
+
+### Pattern: code-quality-reviewer + silent-failure-hunter (1 finding)
+
+| Score | File | Finding | Suggestion |
+|-------|------|---------|------------|
+| 70 | convex/migrations.ts:157-162 | Redundant dual-encoding of "done" state — batch returns both `isDone` and `cursor: null` for the same condition; the two signals can drift independently in future edits, silently breaking pagination | Drop `isDone` from return type; drive the action loop solely from `cursor !== null` |
+
+### Pattern: silent-failure-hunter (1 finding)
+
+| Score | File | Finding | Suggestion |
+|-------|------|---------|------------|
+| 75 | convex/migrations.ts:73 | `brandCode.startsWith('WP2')` throws TypeError if any `catalogPaints` row has null `brandCode` (possible from pre-schema seeding), aborting the entire batch with transaction rollback | Add `if (!brandCode) return null` guard at top of `classifyArmyPainterRow` |
+
+### Pattern: code-simplifier (1 finding)
+
+| Score | File | Finding | Suggestion |
+|-------|------|---------|------------|
+| 50 | convex/migrations.ts:53-85 | Tuple type with `isExact` boolean serves a single exact-match entry — over-engineered data structure with branching inside the loop | Handle exact match as a standalone `if` before the loop; use named objects for prefix rules |
