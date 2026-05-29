@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-29 (after PRD v8 cycle — catalog schema + color family foundation)
+Last updated: 2026-05-29 (after PR #54 — catalog browse UI components)
 
 ## Architecture
 
@@ -112,6 +112,7 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 - **Catalog-first add flow**: `paints/add.vue` is a three-state UI machine (`search` | `catalog` | `manual`). State `search`: inline debounced catalog search via `useCatalogSearch`, dropdown results, "Add manually" link. State `catalog`: selected paint summary card + `PaintForm` in `catalogMode` (brand, name, type, color, transparency, finish, specialType, barcode, brandCode render as read-only `<p>`; status + notes remain editable); `catalogInitialData` pre-fills the form; `selectedCatalogPaintId` passed to `paints.create` as `catalogPaintId`, cleared after successful submit. State `manual`: full editable `PaintForm`, no catalog link. `PaintCatalogSearch` component still exists in the codebase but is no longer used by `add.vue`.
 - **`useCatalogPaint`**: subscribes to a single catalog paint by `Id<'catalogPaints'>` via `client.onUpdate`; returns `{ data, isLoading, error }` — `error` surfaces auth expiry or network failures that are otherwise indistinguishable from "no ID given"
 - **Quick Add**: `PaintQuickAdd` offers Code and Scan tabs only (Manual tab removed). Code tab accepts a brand code and looks up a matching catalog paint; Scan tab uses the barcode scanner via `html5-qrcode`. On a successful match, a confirmation card is displayed and `addPaint` is called directly. Error messages direct users to the full Add Paint page rather than offering manual input.
+- **Catalog browse components**: `CatalogFilters` uses `defineModel` for two-way filter binding (brand, range, colorFamily, search text, hideOwned); range resets to `''` when brand changes. `CatalogPaintCard` shows color swatch (`hexColor: string | null`, fallback `#ccc`), paint metadata, and emits `add` with paint ID or renders an "Owned" badge.
 - **Error handling**: try/catch/finally with local `error` ref + `isLoading` ref in page components
 - **Styling**: Tailwind only — no inline styles, no per-component CSS; custom accent palette
 
@@ -120,10 +121,11 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 ```
 app/
   components/
-    paint/        PaintCard, PaintCatalogSearch, PaintForm, PaintList, PaintQuickAdd, PaintSearch
+    paint/        CatalogFilters, CatalogPaintCard, PaintBarcodeScanner, PaintCard, PaintCatalogSearch,
+                  PaintFilters, PaintForm, PaintImportExport, PaintQuickAdd
     project/      ProjectCard, ProjectForm, ProjectPaintRow, ProjectSchemeRow
     scheme/       SchemeCard, SchemeForm, SchemeStepRow
-    ui/           AppHeader, EmptyState, ErrorBanner, LoadingSpinner
+    ui/           AppHeader, ColorSwatch, EmptyState, ErrorBanner, LoadingSpinner, StatusBadge
   composables/    useAuth.ts, useCatalogSearch.ts, useConvex.ts, usePaints.ts,
                   useSchemes.ts, useProjects.ts, useImportExport.ts
   layouts/        default.vue
