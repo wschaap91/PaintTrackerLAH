@@ -1,6 +1,7 @@
 import { internalMutation, internalAction, query } from './_generated/server'
 import { internal } from './_generated/api'
 import { v } from 'convex/values'
+import { classifyColorFamily } from './colorFamily'
 
 // Convex actions run in a custom environment without @types/node;
 // declare process.env so TypeScript accepts it (available at runtime via Convex deployment env vars).
@@ -19,8 +20,8 @@ interface OpenMiniPaintsEntry {
   brand_code: string
   hex_color: string | null
   type: string
-  finish: string
-  transparency: string
+  finish: string | null
+  transparency: string | null
   special_type?: string | null
   barcode?: string | null
 }
@@ -44,13 +45,14 @@ export const upsertCatalogPaint = internalMutation({
     brandCode: v.string(),
     hexColor: v.union(v.string(), v.null()),
     paintType: v.string(),
-    finish: v.string(),
-    transparency: v.string(),
+    finish: v.union(v.string(), v.null()),
+    transparency: v.union(v.string(), v.null()),
     specialType: v.optional(v.union(v.string(), v.null())),
     barcode: v.optional(v.union(v.string(), v.null())),
   },
   handler: async (ctx, args) => {
     const { openMiniPaintsId, ...fields } = args
+    const colorFamily = classifyColorFamily(fields.hexColor, fields.finish)
 
     // Try to find existing row by openMiniPaintsId first
     const byId = await ctx.db
@@ -59,7 +61,7 @@ export const upsertCatalogPaint = internalMutation({
       .first()
 
     if (byId) {
-      await ctx.db.patch(byId._id, { openMiniPaintsId, ...fields, syncedAt: Date.now() })
+      await ctx.db.patch(byId._id, { openMiniPaintsId, ...fields, colorFamily, syncedAt: Date.now() })
       return
     }
 
@@ -73,7 +75,7 @@ export const upsertCatalogPaint = internalMutation({
 
     if (match) {
       // Backfill openMiniPaintsId and update all fields
-      await ctx.db.patch(match._id, { openMiniPaintsId, ...fields, syncedAt: Date.now() })
+      await ctx.db.patch(match._id, { openMiniPaintsId, ...fields, colorFamily, syncedAt: Date.now() })
       return
     }
 
@@ -81,6 +83,7 @@ export const upsertCatalogPaint = internalMutation({
     await ctx.db.insert('catalogPaints', {
       openMiniPaintsId,
       ...fields,
+      colorFamily,
       syncedAt: Date.now(),
     })
   },
@@ -213,8 +216,8 @@ export const syncCatalog = internalAction({
               brandCode: entry.brand_code,
               hexColor: entry.hex_color ?? null,
               paintType: entry.type,
-              finish: entry.finish,
-              transparency: entry.transparency,
+              finish: entry.finish ?? null,
+              transparency: entry.transparency ?? null,
               specialType: entry.special_type ?? null,
               barcode: entry.barcode ?? null,
             })
@@ -233,5 +236,57 @@ export const syncCatalog = internalAction({
     }
 
     return { synced, errors }
+  },
+})
+
+// ---------------------------------------------------------------------------
+// backfillColorFamily — internalAction
+// Iterates all catalogPaints rows missing colorFamily and patches them.
+// Run once after deploying the schema update.
+// ---------------------------------------------------------------------------
+
+export const backfillColorFamily = internalAction({
+  args: {},
+  handler: async (ctx): Promise<{ patched: number }> => {
+    let cursor: string | null = null
+    let totalPatched = 0
+
+    do {
+      const result: { patched: number; cursor: string | null; isDone: boolean } =
+        await ctx.runMutation(internal.catalogSync.backfillColorFamilyBatch, { cursor })
+      totalPatched += result.patched
+      cursor = result.isDone ? null : result.cursor
+    } while (cursor !== null)
+
+    return { patched: totalPatched }
+  },
+})
+
+export const backfillColorFamilyBatch = internalMutation({
+  args: {
+    cursor: v.union(v.string(), v.null()),
+  },
+  handler: async (ctx, args): Promise<{ patched: number; cursor: string | null; isDone: boolean }> => {
+    const BATCH_SIZE = 100
+
+    const page = await ctx.db
+      .query('catalogPaints')
+      .paginate({ cursor: args.cursor, numItems: BATCH_SIZE })
+
+    let patched = 0
+
+    for (const row of page.page) {
+      if (row.colorFamily !== undefined) continue
+
+      const colorFamily = classifyColorFamily(row.hexColor, row.finish ?? null)
+      await ctx.db.patch(row._id, { colorFamily })
+      patched++
+    }
+
+    return {
+      patched,
+      cursor: page.isDone ? null : page.continueCursor,
+      isDone: page.isDone,
+    }
   },
 })

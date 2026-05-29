@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-28 (after PRD v7 cycle — catalog-first paint adding)
+Last updated: 2026-05-29 (after PRD v8 cycle — catalog schema + color family foundation)
 
 ## Architecture
 
@@ -58,11 +58,12 @@ Nuxt 4 SPA frontend communicates with Convex Cloud exclusively through a single 
 // catalogPaints — read-only paint catalog (synced from OpenMiniPaints API)
 { brand: string, range: string, rangeCode: string, name: string,
   brandCode: string, hexColor: string | null, paintType: string,
-  finish: string, transparency: string,
+  finish: string | null, transparency: string | null,
+  colorFamily?: string,
   specialType?: string | null, barcode?: string | null,
   openMiniPaintsId?: string, syncedAt?: number }
-// indexes: by_brand, by_range, by_brand_code, by_open_mini_paints_id
-// searchIndex: search_name (searchField: name, filterFields: [brand])
+// indexes: by_brand, by_range, by_brand_code, by_open_mini_paints_id, by_brand_range, by_color_family
+// searchIndex: search_name (searchField: name, filterFields: [brand, range, colorFamily])
 ```
 
 Auth tables provided by `@convex-dev/auth` (ADR-003).
@@ -93,8 +94,10 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 - `searchCatalog({ q, brand?, limit? })` → `CatalogPaint[]` — auth required; uses `search_name` searchIndex; limit clamped 1–25 (default 10)
 - `getCatalogPaint({ id })` → `CatalogPaint | null` — auth required
 - `lookupCatalogByCode({ code?, barcode? })` → `CatalogPaint | null` — auth required; `code` uses `by_brand_code` index (exact match); `barcode` uses filter scan
-- `internal.upsertCatalogPaint(...)` — internalMutation; upserts by `openMiniPaintsId`, fallback brand+brandCode for pre-sync rows; always sets `syncedAt`
+- `internal.upsertCatalogPaint(...)` — internalMutation; upserts by `openMiniPaintsId`, fallback brand+brandCode for pre-sync rows; always sets `syncedAt`; computes and stores `colorFamily` via `classifyColorFamily`
 - `internal.syncCatalog({})` — internalAction; cursor-paged HTTP fetch from OpenMiniPaints API; scheduled nightly via `crons.ts`; returns `{ synced, errors }`
+- `internal.backfillColorFamily({})` — internalAction; paginates all `catalogPaints` rows and calls `backfillColorFamilyBatch` to fill missing `colorFamily` values
+- `internal.backfillColorFamilyBatch({ cursor })` — internalMutation; processes up to 100 rows per call via cursor-based pagination, writes `colorFamily` for rows missing it
 
 **http.ts** — HTTP action routes for Convex Auth callbacks
 
@@ -135,7 +138,7 @@ app/
   plugins/        convex.client.ts
 convex/
   schema.ts, auth.ts, auth.config.js, http.ts
-  paints.ts, schemes.ts, projects.ts, migrations.ts, catalogSync.ts, crons.ts
+  paints.ts, schemes.ts, projects.ts, migrations.ts, catalogSync.ts, crons.ts, colorFamily.ts
   _generated/     (auto-generated — do not edit)
 ```
 

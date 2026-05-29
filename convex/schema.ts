@@ -70,8 +70,9 @@ export default defineSchema({
     brandCode: v.string(),
     hexColor: v.union(v.string(), v.null()),
     paintType: v.string(),
-    finish: v.string(),
-    transparency: v.string(),
+    finish: v.union(v.string(), v.null()),
+    transparency: v.union(v.string(), v.null()),
+    colorFamily: v.optional(v.string()),
     // optional: absent on static-seed entries (deduped by brandCode); present on
     // every OpenMiniPaints-synced entry. Convex cannot enforce uniqueness at the
     // DB level, so the sync action (T2) MUST query this index before inserting
@@ -85,5 +86,8 @@ export default defineSchema({
     .index('by_range', ['range'])
     .index('by_brand_code', ['brandCode'])
     .index('by_open_mini_paints_id', ['openMiniPaintsId'])
-    .searchIndex('search_name', { searchField: 'name', filterFields: ['brand'] }),
+    .index('by_brand_range', ['brand', 'range'])
+    // NOTE: rows where colorFamily is undefined are excluded from this index — backfillColorFamily must run before querying by color family.
+    .index('by_color_family', ['colorFamily'])
+    .searchIndex('search_name', { searchField: 'name', filterFields: ['brand', 'range', 'colorFamily'] }),
 })
