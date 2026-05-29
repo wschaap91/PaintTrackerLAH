@@ -30,10 +30,11 @@ onMounted(() => {
     },
     { rootMargin: '200px' }
   )
-  if (sentinelRef.value) {
-    observer.observe(sentinelRef.value)
-  }
 })
+
+watch(sentinelRef, (el) => {
+  if (el && observer) observer.observe(el)
+}, { immediate: true })
 
 onUnmounted(() => {
   observer?.disconnect()

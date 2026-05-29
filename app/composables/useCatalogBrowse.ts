@@ -191,6 +191,7 @@ export function useCatalogBrowse() {
       (err: Error) => {
         error.value = err
         isLoading.value = false
+        hasMore.value = false
       },
     )
   }
@@ -225,10 +226,12 @@ export function useCatalogBrowse() {
   function loadMore() {
     if (isSearchMode()) {
       if (!hasMore.value) return
+      isLoading.value = true
       searchChunkIndex.value++
       const revealedCount = (searchChunkIndex.value + 1) * PAGE_SIZE
       results.value = allSearchResults.value.slice(0, revealedCount)
       hasMore.value = allSearchResults.value.length > revealedCount
+      nextTick(() => { isLoading.value = false })
       return
     }
     if (!hasMore.value || continueCursor === null) return
