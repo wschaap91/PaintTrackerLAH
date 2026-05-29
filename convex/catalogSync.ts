@@ -107,7 +107,7 @@ export const searchCatalog = query({
     if (!identity) return []
 
     const rawLimit = args.limit ?? 10
-    const limit = Math.max(1, Math.min(25, rawLimit))
+    const limit = Math.max(1, Math.min(100, rawLimit))
 
     const results = await ctx.db
       .query('catalogPaints')
