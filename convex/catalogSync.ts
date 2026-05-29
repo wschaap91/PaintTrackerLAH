@@ -1,6 +1,7 @@
 import { internalMutation, internalAction, query } from './_generated/server'
 import { internal } from './_generated/api'
 import { v } from 'convex/values'
+import { classifyColorFamily } from './colorFamily'
 
 // Convex actions run in a custom environment without @types/node;
 // declare process.env so TypeScript accepts it (available at runtime via Convex deployment env vars).
@@ -44,13 +45,14 @@ export const upsertCatalogPaint = internalMutation({
     brandCode: v.string(),
     hexColor: v.union(v.string(), v.null()),
     paintType: v.string(),
-    finish: v.string(),
-    transparency: v.string(),
+    finish: v.union(v.string(), v.null()),
+    transparency: v.union(v.string(), v.null()),
     specialType: v.optional(v.union(v.string(), v.null())),
     barcode: v.optional(v.union(v.string(), v.null())),
   },
   handler: async (ctx, args) => {
     const { openMiniPaintsId, ...fields } = args
+    const colorFamily = classifyColorFamily(fields.hexColor, fields.finish)
 
     // Try to find existing row by openMiniPaintsId first
     const byId = await ctx.db
@@ -59,7 +61,7 @@ export const upsertCatalogPaint = internalMutation({
       .first()
 
     if (byId) {
-      await ctx.db.patch(byId._id, { openMiniPaintsId, ...fields, syncedAt: Date.now() })
+      await ctx.db.patch(byId._id, { openMiniPaintsId, ...fields, colorFamily, syncedAt: Date.now() })
       return
     }
 
@@ -73,7 +75,7 @@ export const upsertCatalogPaint = internalMutation({
 
     if (match) {
       // Backfill openMiniPaintsId and update all fields
-      await ctx.db.patch(match._id, { openMiniPaintsId, ...fields, syncedAt: Date.now() })
+      await ctx.db.patch(match._id, { openMiniPaintsId, ...fields, colorFamily, syncedAt: Date.now() })
       return
     }
 
@@ -81,6 +83,7 @@ export const upsertCatalogPaint = internalMutation({
     await ctx.db.insert('catalogPaints', {
       openMiniPaintsId,
       ...fields,
+      colorFamily,
       syncedAt: Date.now(),
     })
   },
@@ -233,5 +236,43 @@ export const syncCatalog = internalAction({
     }
 
     return { synced, errors }
+  },
+})
+
+// ---------------------------------------------------------------------------
+// backfillColorFamily — internalAction
+// Iterates all catalogPaints rows missing colorFamily and patches them.
+// Run once after deploying the schema update.
+// ---------------------------------------------------------------------------
+
+export const backfillColorFamily = internalAction({
+  args: {},
+  handler: async (ctx): Promise<{ patched: number }> => {
+    // Fetch all rows without colorFamily in batches via a mutation so we
+    // stay within Convex action limits. We delegate DB work to an internal
+    // mutation to avoid direct DB access inside an action.
+    const result = await ctx.runMutation(internal.catalogSync.backfillColorFamilyBatch, {})
+    return result
+  },
+})
+
+export const backfillColorFamilyBatch = internalMutation({
+  args: {},
+  handler: async (ctx): Promise<{ patched: number }> => {
+    // Convex mutations have a 8 MB / 4096 document read limit, so we fetch
+    // all rows and patch only those missing colorFamily. For large catalogs
+    // this may need to be chunked — acceptable for a one-shot backfill.
+    const rows = await ctx.db.query('catalogPaints').collect()
+    let patched = 0
+
+    for (const row of rows) {
+      if (row.colorFamily !== undefined) continue
+
+      const colorFamily = classifyColorFamily(row.hexColor, row.finish ?? null)
+      await ctx.db.patch(row._id, { colorFamily })
+      patched++
+    }
+
+    return { patched }
   },
 })
