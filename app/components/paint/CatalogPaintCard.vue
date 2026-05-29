@@ -5,7 +5,7 @@ const props = defineProps<{
     name: string
     brand: string
     range: string
-    hexColor: string
+    hexColor: string | null
     paintType: string
     brandCode: string
   }
@@ -22,9 +22,9 @@ function formatType(type: string): string {
 </script>
 
 <template>
-  <div class="card hover:shadow-md transition-shadow">
+  <div class="card">
     <div class="flex items-start gap-3">
-      <ColorSwatch :color="paint.hexColor" size="sm" />
+      <ColorSwatch :color="paint.hexColor ?? '#ccc'" size="sm" />
       <div class="min-w-0 flex-1">
         <h3 class="text-sm font-medium text-gray-900 truncate">
           {{ paint.name }}
