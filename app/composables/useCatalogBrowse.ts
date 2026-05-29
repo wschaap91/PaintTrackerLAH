@@ -79,6 +79,12 @@ export function useCatalogBrowse() {
     if (disposed) return
     if (!append) {
       resetPagination()
+    } else {
+      // Cancel existing page subscriptions so stale callbacks can't overwrite
+      // isLoading/error state from this newer subscription. We intentionally
+      // keep results.value intact — it holds the accumulated previous pages.
+      pageUnsubs.forEach(u => u())
+      pageUnsubs = []
     }
     isLoading.value = true
     error.value = null
