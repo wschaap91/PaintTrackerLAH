@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-29 (after PR #54 — catalog browse UI components + t6 paint-filters fix)
+Last updated: 2026-05-29 (after PRD v9 cycle — catalog backend queries + mutations + UI components + paint-filters fix)
 
 ## Architecture
 
@@ -78,6 +78,7 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 - `remove({ id })` → `void`
 - `bulkCreate({ paints[], onDuplicate: 'skip' | 'update' })` → `{ added, skipped, updated }` — dedupes by name+brand; each paint accepts `catalogPaintId?`
 - `search({ query })` → `Paint[]`
+- `listOwnedCatalogIds({})` → `Id<"catalogPaints">[]` — returns catalog paint IDs the user already owns
 
 **schemes.ts** (authenticated unless noted)
 - `list({})`, `get({ id })`, `create(...)`, `update(...)`, `remove({ id })`
@@ -91,9 +92,11 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 - `addScheme / removeScheme`, `addPaint / removePaint / updatePaint`
 
 **catalogSync.ts** (authenticated unless noted)
-- `searchCatalog({ q, brand?, limit? })` → `CatalogPaint[]` — auth required; uses `search_name` searchIndex; limit clamped 1–25 (default 10)
+- `searchCatalog({ q, brand?, range?, colorFamily?, limit? })` → `CatalogPaint[]` — auth required; uses `search_name` searchIndex with optional `range` and `colorFamily` filters; limit clamped 1–25 (default 10)
+- `browseCatalog({ brand?, range?, colorFamily?, paginationOpts })` → paginated `CatalogPaint[]` — auth required; uses `by_brand_range` index; filters by `colorFamily` post-index
 - `getCatalogPaint({ id })` → `CatalogPaint | null` — auth required
 - `lookupCatalogByCode({ code?, barcode? })` → `CatalogPaint | null` — auth required; `code` uses `by_brand_code` index (exact match); `barcode` uses filter scan
+- `addFromCatalog({ catalogPaintId })` → `Id<"paints">` — auth required; creates owned paint from catalog entry; throws if user already owns a paint with same `catalogPaintId`
 - `internal.upsertCatalogPaint(...)` — internalMutation; upserts by `openMiniPaintsId`, fallback brand+brandCode for pre-sync rows; always sets `syncedAt`; computes and stores `colorFamily` via `classifyColorFamily`
 - `internal.syncCatalog({})` — internalAction; cursor-paged HTTP fetch from OpenMiniPaints API; scheduled nightly via `crons.ts`; returns `{ synced, errors }`
 - `internal.backfillColorFamily({})` — internalAction; paginates all `catalogPaints` rows and calls `backfillColorFamilyBatch` to fill missing `colorFamily` values

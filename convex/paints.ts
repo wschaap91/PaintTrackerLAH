@@ -160,6 +160,23 @@ export const bulkCreate = mutation({
   },
 })
 
+export const listOwnedCatalogIds = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return []
+
+    const paints = await ctx.db
+      .query('paints')
+      .withIndex('by_user', q => q.eq('userId', identity.subject))
+      .collect()
+
+    return paints
+      .map(p => p.catalogPaintId)
+      .filter((id): id is NonNullable<typeof id> => id != null)
+  },
+})
+
 export const lookup = query({
   args: {
     code: v.optional(v.string()),
