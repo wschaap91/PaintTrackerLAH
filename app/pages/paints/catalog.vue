@@ -2,19 +2,11 @@
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
 
-const { filters, results, isLoading, error, ownedIds, loadMore, hasMore } = useCatalogBrowse()
+const { filters, results, isLoading, error, ownedIds, loadMore, hasMore, availableRanges } = useCatalogBrowse()
 
 const addFromCatalog = useConvexMutation(api.catalogSync.addFromCatalog)
 
 const addError = ref<string | null>(null)
-
-const availableRanges = computed<string[]>(() => {
-  const rangeSet = new Set<string>()
-  for (const paint of results.value) {
-    if (paint.range) rangeSet.add(paint.range)
-  }
-  return Array.from(rangeSet).sort()
-})
 
 async function handleAdd(catalogPaintId: string) {
   addError.value = null

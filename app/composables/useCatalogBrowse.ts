@@ -28,6 +28,7 @@ export function useCatalogBrowse() {
   const error = ref<Error | null>(null)
   const hasMore = ref(false)
   const ownedIds = ref<Set<string>>(new Set())
+  const availableRanges = ref<string[]>([])
 
   // ---------------------------------------------------------------------------
   // Internal cursor / subscription tracking
@@ -35,6 +36,7 @@ export function useCatalogBrowse() {
   let continueCursor: string | null = null
   let pageUnsubs: Array<() => void> = []
   let ownedUnsub: (() => void) | null = null
+  let rangesUnsub: (() => void) | null = null
   let disposed = false
 
   // Debounce timer for text query
@@ -57,6 +59,28 @@ export function useCatalogBrowse() {
       },
       (_err: Error) => {
         // Non-fatal: keep previous ownedIds
+      },
+    )
+  }
+
+  // ---------------------------------------------------------------------------
+  // Ranges subscription — re-subscribes when brand filter changes
+  // ---------------------------------------------------------------------------
+  function subscribeRanges() {
+    if (rangesUnsub) {
+      rangesUnsub()
+      rangesUnsub = null
+    }
+    if (disposed) return
+    const brand = filters.brand || undefined
+    rangesUnsub = client.onUpdate(
+      api.catalogSync.listCatalogRanges,
+      { brand },
+      (data: string[]) => {
+        availableRanges.value = data
+      },
+      (_err: Error) => {
+        // Non-fatal: keep previous ranges
       },
     )
   }
@@ -114,6 +138,9 @@ export function useCatalogBrowse() {
       (err: Error) => {
         error.value = err
         isLoading.value = false
+        if (append) {
+          hasMore.value = false
+        }
       },
     )
     pageUnsubs.push(unsub)
@@ -207,9 +234,10 @@ export function useCatalogBrowse() {
   watch(
     () => [filters.brand, filters.range, filters.colorFamily] as const,
     ([newBrand], [oldBrand]) => {
-      // If brand changes, reset range
+      // If brand changes, reset range and refresh ranges subscription
       if (newBrand !== oldBrand) {
         filters.range = ''
+        subscribeRanges()
       }
       refresh()
     },
@@ -228,6 +256,7 @@ export function useCatalogBrowse() {
 
   // Initial load
   subscribeOwnedIds()
+  subscribeRanges()
   isLoading.value = true
   subscribeBrowsePage(null, false)
 
@@ -241,6 +270,7 @@ export function useCatalogBrowse() {
     pageUnsubs = []
     teardownSearch()
     if (ownedUnsub) ownedUnsub()
+    if (rangesUnsub) rangesUnsub()
   })
 
   return {
@@ -251,5 +281,6 @@ export function useCatalogBrowse() {
     ownedIds,
     loadMore,
     hasMore,
+    availableRanges,
   }
 }
