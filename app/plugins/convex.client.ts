@@ -12,10 +12,26 @@ export default defineNuxtPlugin(() => {
 
   const client = new ConvexClient(convexUrl)
 
+  function isTokenExpired(token: string): boolean {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      return typeof payload.exp === 'number' && payload.exp * 1000 < Date.now()
+    } catch {
+      return true
+    }
+  }
+
   // In-memory token store — authoritative source so fetchToken avoids a
   // synchronous localStorage read on every call.
   let authToken: string | null = localStorage.getItem('convex_auth_token')
   let refreshToken: string | null = localStorage.getItem('convex_refresh_token')
+
+  // Discard expired tokens immediately so the client never enters a
+  // retry loop sending a JWT the server will always reject.
+  if (authToken && isTokenExpired(authToken)) {
+    authToken = null
+    localStorage.removeItem('convex_auth_token')
+  }
 
   function onAuthChange(isAuth: boolean) {
     if (isAuth) {
@@ -26,6 +42,9 @@ export default defineNuxtPlugin(() => {
       localStorage.removeItem('convex_auth_token')
       localStorage.removeItem('convex_refresh_token')
       useState<boolean>('auth:isAuthenticated').value = false
+      // Drop back to unauthenticated mode so actions (including the
+      // login action) are not blocked waiting for a token forever.
+      client.setAuth(async () => null)
     }
   }
 
@@ -36,6 +55,11 @@ export default defineNuxtPlugin(() => {
 
   async function fetchToken({ forceRefreshToken }: { forceRefreshToken: boolean }): Promise<string | null> {
     if (!forceRefreshToken) {
+      if (authToken && isTokenExpired(authToken)) {
+        authToken = null
+        localStorage.removeItem('convex_auth_token')
+        return null
+      }
       return authToken
     }
     if (refreshToken) {

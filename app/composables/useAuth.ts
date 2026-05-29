@@ -26,6 +26,9 @@ export function useAuth() {
     error.value = null
     try {
       if (!$convex) throw new Error('Backend not available — check CONVEX_URL configuration')
+      // Clear any stale auth so the action is not blocked waiting for
+      // a token that will never validate (e.g. expired JWT in localStorage).
+      $convexSetAuth(null)
       const result = await $convex.action(api.auth.signIn, {
         provider: 'password',
         params: { email, password, flow: 'signIn' },
@@ -56,6 +59,7 @@ export function useAuth() {
     error.value = null
     try {
       if (!$convex) throw new Error('Backend not available — check CONVEX_URL configuration')
+      $convexSetAuth(null)
       const result = await $convex.action(api.auth.signIn, {
         provider: 'password',
         params: { email, password, flow: 'signUp' },
