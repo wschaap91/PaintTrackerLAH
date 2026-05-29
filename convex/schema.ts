@@ -24,7 +24,8 @@ export default defineSchema({
     .index('by_type', ['paintType'])
     .index('by_brand_code', ['brandCode'])
     .index('by_barcode', ['barcode'])
-    .index('by_user', ['userId']),
+    .index('by_user', ['userId'])
+    .index('by_catalog_paint', ['catalogPaintId']),
 
   schemes: defineTable({
     userId: v.optional(v.string()),
@@ -80,7 +81,7 @@ export default defineSchema({
     specialType: v.optional(v.union(v.string(), v.null())),
     barcode: v.optional(v.union(v.string(), v.null())),
     openMiniPaintsId: v.optional(v.string()),
-    syncedAt: v.optional(v.number()),
+    syncedAt: v.optional(v.union(v.number(), v.null())),
   })
     .index('by_brand', ['brand'])
     .index('by_range', ['range'])
