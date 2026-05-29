@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-29 (after PRD v10 cycle — catalog browser page + navigation)
+Last updated: 2026-05-29 (after PR #72 — Army Painter name normalization migration)
 
 ## Architecture
 
@@ -102,6 +102,10 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 - `internal.syncCatalog({})` — internalAction; cursor-paged HTTP fetch from OpenMiniPaints API; scheduled nightly via `crons.ts`; returns `{ synced, errors }`
 - `internal.backfillColorFamily({})` — internalAction; paginates all `catalogPaints` rows and calls `backfillColorFamilyBatch` to fill missing `colorFamily` values
 - `internal.backfillColorFamilyBatch({ cursor })` — internalMutation; processes up to 100 rows per call via cursor-based pagination, writes `colorFamily` for rows missing it
+
+**migrations.ts** (all internal)
+- `internal.normalizeArmyPainterNames({})` — internalAction; drives paginated cleanup of Army Painter `catalogPaints` rows; uses `by_brand` index and cursor-based pagination (same pattern as `backfillColorFamily`)
+- `internal.normalizeArmyPainterNamesBatch({ cursor })` — internalMutation; processes up to 100 rows/batch; strips range prefixes from names, backfills correct `range` and `paintType` via `classifyArmyPainterRow`; idempotent
 
 **http.ts** — HTTP action routes for Convex Auth callbacks
 
