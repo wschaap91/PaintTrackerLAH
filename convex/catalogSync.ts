@@ -137,7 +137,7 @@ export const browseCatalog = query({
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity()
-    if (!identity) return { page: [], isDone: true, continueCursor: '' }
+    if (!identity) throw new Error('Unauthenticated')
 
     let dbQuery
     if (args.brand && args.range) {
