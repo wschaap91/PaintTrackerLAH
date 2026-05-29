@@ -16,6 +16,29 @@ async function handleAdd(catalogPaintId: string) {
     addError.value = err instanceof Error ? err.message : 'Failed to add paint'
   }
 }
+
+const sentinelRef = ref<HTMLElement | null>(null)
+let observer: IntersectionObserver | null = null
+
+onMounted(() => {
+  observer = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0]
+      if (entry?.isIntersecting && hasMore.value && !isLoading.value) {
+        loadMore()
+      }
+    },
+    { rootMargin: '200px' }
+  )
+  if (sentinelRef.value) {
+    observer.observe(sentinelRef.value)
+  }
+})
+
+onUnmounted(() => {
+  observer?.disconnect()
+  observer = null
+})
 </script>
 
 <template>
@@ -80,14 +103,13 @@ async function handleAdd(catalogPaintId: string) {
       />
     </div>
 
-    <div v-if="hasMore" class="mt-8 flex justify-center">
-      <button
-        class="rounded-lg border border-gray-200 px-6 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
-        :disabled="isLoading"
-        @click="loadMore"
-      >
-        {{ isLoading ? 'Loading...' : 'Load more' }}
-      </button>
+    <div
+      v-if="isLoading && results.length > 0"
+      class="mt-8 flex justify-center"
+    >
+      <div class="h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-accent-600" />
     </div>
+
+    <div ref="sentinelRef" class="h-px" />
   </div>
 </template>
