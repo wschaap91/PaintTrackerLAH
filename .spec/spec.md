@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-29 (after PRD v9 cycle — catalog backend queries + mutations)
+Last updated: 2026-05-29 (after PRD v9 cycle — catalog browse composable + backend queries)
 
 ## Architecture
 
@@ -106,8 +106,9 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 
 ## Key Patterns
 
-- **Composable-only data access**: `useConvexQuery`, `useConvexMutation`, `useConvexClient` wrap all Convex calls (ADR-008); `useCatalogSearch` and `useCatalogPaint` use `client.onUpdate` directly for real-time subscriptions with explicit lifecycle management (immediate watch, disposed guard via `onScopeDispose`, stale `data` cleared on unsubscribe or error, `error` ref exposed to callers)
+- **Composable-only data access**: `useConvexQuery`, `useConvexMutation`, `useConvexClient` wrap all Convex calls (ADR-008); `useCatalogSearch`, `useCatalogPaint`, and `useCatalogBrowse` use `client.onUpdate` directly for real-time subscriptions with explicit lifecycle management (immediate watch, disposed guard via `onScopeDispose`, stale `data` cleared on unsubscribe or error, `error` ref exposed to callers)
 - **Domain composables**: `usePaints`, `useSchemes`, `useProjects`, `useImportExport`
+- **`useCatalogBrowse`**: reactive catalog browsing composable; auto-switches between `browseCatalog` (no text query) and `searchCatalog` (≥2 chars) with 300ms debounce; tracks owned paint IDs via `listOwnedCatalogIds`; client-side `hideOwned` filtering; infinite scroll via `loadMore()` with cursor-based pagination (25 items/page); returns `{ filters, results, isLoading, error, ownedIds, loadMore, hasMore }`
 - **Auth state**: `useState('auth:isAuthenticated')` as reactive Nuxt state; JWT + refresh token persisted in `localStorage`; in-memory `authToken`/`refreshToken` variables serve as the authoritative fast-path so `fetchToken` avoids synchronous localStorage reads; `signIn`/`signUp` throw `'Backend not available — check CONVEX_URL configuration'` if `$convex` is undefined; `signOut` degrades gracefully (skips remote call, still clears local state)
 - **Token refresh**: `client.setAuth(fetchToken, onAuthChange)` — Convex calls `fetchToken({ forceRefreshToken: true })` before JWT expiry; exchanges refresh token via `api.auth.signIn({ refreshToken })`; rotates refresh token if server returns a new one; failed refresh falls through to `null` triggering clean logout via `onAuthChange`
 - **Data scoping**: every query/mutation resolves `userId` via `ctx.auth.getUserIdentity().subject`
@@ -123,12 +124,14 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 ```
 app/
   components/
-    paint/        PaintCard, PaintCatalogSearch, PaintForm, PaintList, PaintQuickAdd, PaintSearch
-    project/      ProjectCard, ProjectForm, ProjectPaintRow, ProjectSchemeRow
-    scheme/       SchemeCard, SchemeForm, SchemeStepRow
-    ui/           AppHeader, EmptyState, ErrorBanner, LoadingSpinner
-  composables/    useAuth.ts, useCatalogSearch.ts, useConvex.ts, usePaints.ts,
-                  useSchemes.ts, useProjects.ts, useImportExport.ts
+    paint/        CatalogFilters, CatalogPaintCard, PaintBarcodeScanner.client,
+                  PaintCard, PaintCatalogSearch, PaintFilters, PaintForm,
+                  PaintImportExport, PaintQuickAdd
+    project/      ProjectCard, ProjectForm
+    scheme/       SchemeCard, SchemeForm, SchemeStepEditor
+    ui/           AppHeader, ColorSwatch, EmptyState, StatusBadge
+  composables/    useAuth.ts, useCatalogBrowse.ts, useCatalogSearch.ts, useConvex.ts,
+                  useImportExport.ts, usePaints.ts, useProjects.ts, useSchemes.ts
   layouts/        default.vue
   middleware/     auth.global.ts
   pages/
