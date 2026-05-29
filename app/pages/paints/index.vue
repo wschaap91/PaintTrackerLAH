@@ -21,6 +21,12 @@ const showImportExport = ref(false)
         </p>
       </div>
       <div class="flex gap-2">
+        <NuxtLink
+          to="/paints/catalog"
+          class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+        >
+          Browse Catalog
+        </NuxtLink>
         <button
           class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
           @click="showImportExport = !showImportExport"

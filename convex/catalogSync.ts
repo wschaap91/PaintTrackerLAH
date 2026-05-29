@@ -243,6 +243,40 @@ export const lookupCatalogByCode = query({
 })
 
 // ---------------------------------------------------------------------------
+// listCatalogRanges — distinct range values, optionally filtered by brand (auth required)
+// ---------------------------------------------------------------------------
+
+export const listCatalogRanges = query({
+  args: {
+    brand: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<string[]> => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return []
+
+    const rangeSet = new Set<string>()
+
+    if (args.brand) {
+      // Use by_brand_range index to efficiently scan only the given brand
+      const rows = await ctx.db
+        .query('catalogPaints')
+        .withIndex('by_brand_range', q => q.eq('brand', args.brand!))
+        .collect()
+      for (const row of rows) {
+        if (row.range) rangeSet.add(row.range)
+      }
+    } else {
+      const rows = await ctx.db.query('catalogPaints').collect()
+      for (const row of rows) {
+        if (row.range) rangeSet.add(row.range)
+      }
+    }
+
+    return Array.from(rangeSet).sort()
+  },
+})
+
+// ---------------------------------------------------------------------------
 // getCatalogPaint — public query (auth required)
 // ---------------------------------------------------------------------------
 
