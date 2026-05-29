@@ -87,6 +87,7 @@ export default defineSchema({
     .index('by_brand_code', ['brandCode'])
     .index('by_open_mini_paints_id', ['openMiniPaintsId'])
     .index('by_brand_range', ['brand', 'range'])
+    // NOTE: rows where colorFamily is undefined are excluded from this index — backfillColorFamily must run before querying by color family.
     .index('by_color_family', ['colorFamily'])
     .searchIndex('search_name', { searchField: 'name', filterFields: ['brand', 'range', 'colorFamily'] }),
 })

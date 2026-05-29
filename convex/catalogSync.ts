@@ -20,8 +20,8 @@ interface OpenMiniPaintsEntry {
   brand_code: string
   hex_color: string | null
   type: string
-  finish: string
-  transparency: string
+  finish: string | null
+  transparency: string | null
   special_type?: string | null
   barcode?: string | null
 }
@@ -216,8 +216,8 @@ export const syncCatalog = internalAction({
               brandCode: entry.brand_code,
               hexColor: entry.hex_color ?? null,
               paintType: entry.type,
-              finish: entry.finish,
-              transparency: entry.transparency,
+              finish: entry.finish ?? null,
+              transparency: entry.transparency ?? null,
               specialType: entry.special_type ?? null,
               barcode: entry.barcode ?? null,
             })
@@ -248,24 +248,34 @@ export const syncCatalog = internalAction({
 export const backfillColorFamily = internalAction({
   args: {},
   handler: async (ctx): Promise<{ patched: number }> => {
-    // Fetch all rows without colorFamily in batches via a mutation so we
-    // stay within Convex action limits. We delegate DB work to an internal
-    // mutation to avoid direct DB access inside an action.
-    const result = await ctx.runMutation(internal.catalogSync.backfillColorFamilyBatch, {})
-    return result
+    let cursor: string | null = null
+    let totalPatched = 0
+
+    do {
+      const result: { patched: number; cursor: string | null; isDone: boolean } =
+        await ctx.runMutation(internal.catalogSync.backfillColorFamilyBatch, { cursor })
+      totalPatched += result.patched
+      cursor = result.isDone ? null : result.cursor
+    } while (cursor !== null)
+
+    return { patched: totalPatched }
   },
 })
 
 export const backfillColorFamilyBatch = internalMutation({
-  args: {},
-  handler: async (ctx): Promise<{ patched: number }> => {
-    // Convex mutations have a 8 MB / 4096 document read limit, so we fetch
-    // all rows and patch only those missing colorFamily. For large catalogs
-    // this may need to be chunked — acceptable for a one-shot backfill.
-    const rows = await ctx.db.query('catalogPaints').collect()
+  args: {
+    cursor: v.union(v.string(), v.null()),
+  },
+  handler: async (ctx, args): Promise<{ patched: number; cursor: string | null; isDone: boolean }> => {
+    const BATCH_SIZE = 100
+
+    const page = await ctx.db
+      .query('catalogPaints')
+      .paginate({ cursor: args.cursor, numItems: BATCH_SIZE })
+
     let patched = 0
 
-    for (const row of rows) {
+    for (const row of page.page) {
       if (row.colorFamily !== undefined) continue
 
       const colorFamily = classifyColorFamily(row.hexColor, row.finish ?? null)
@@ -273,6 +283,10 @@ export const backfillColorFamilyBatch = internalMutation({
       patched++
     }
 
-    return { patched }
+    return {
+      patched,
+      cursor: page.isDone ? null : page.continueCursor,
+      isDone: page.isDone,
+    }
   },
 })

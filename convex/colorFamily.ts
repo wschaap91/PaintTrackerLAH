@@ -28,7 +28,10 @@ export function classifyColorFamily(
   if (!hexColor) return 'grey'
 
   const rgb = hexToRgb(hexColor)
-  if (!rgb) return 'grey'
+  if (!rgb) {
+    console.warn(`classifyColorFamily: could not parse hex "${hexColor}", defaulting to grey`)
+    return 'grey'
+  }
 
   const [h, s, l] = rgbToHsl(rgb.r, rgb.g, rgb.b)
 
