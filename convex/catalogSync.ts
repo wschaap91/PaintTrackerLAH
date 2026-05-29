@@ -3,6 +3,7 @@ import { internal } from './_generated/api'
 import { v } from 'convex/values'
 import { paginationOptsValidator } from 'convex/server'
 import { classifyColorFamily } from './colorFamily'
+import { getAuthUserId } from './lib'
 
 // Convex actions run in a custom environment without @types/node;
 // declare process.env so TypeScript accepts it (available at runtime via Convex deployment env vars).
@@ -173,8 +174,8 @@ export const addFromCatalog = mutation({
     catalogPaintId: v.id('catalogPaints'),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity()
-    if (!identity) throw new Error('Unauthenticated')
+    const userId = await getAuthUserId(ctx)
+    if (!userId) throw new Error('Unauthenticated')
 
     const catalogPaint = await ctx.db.get(args.catalogPaintId)
     if (!catalogPaint) throw new Error(`Catalog paint ${args.catalogPaintId} not found`)
@@ -182,7 +183,7 @@ export const addFromCatalog = mutation({
     // Check for duplicate: user already owns a paint linked to this catalog entry
     const existing = await ctx.db
       .query('paints')
-      .withIndex('by_user', q => q.eq('userId', identity.subject))
+      .withIndex('by_user', q => q.eq('userId', userId))
       .filter(q => q.eq(q.field('catalogPaintId'), args.catalogPaintId))
       .first()
 
@@ -194,7 +195,7 @@ export const addFromCatalog = mutation({
     }
 
     return await ctx.db.insert('paints', {
-      userId: identity.subject,
+      userId,
       brand: catalogPaint.brand,
       name: catalogPaint.name,
       paintType: catalogPaint.paintType,
