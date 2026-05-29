@@ -70,25 +70,34 @@ function classifyArmyPainterRow(
   name: string,
   brandCode: string,
 ): NormalizeResult {
-  // Handle Speedpaint 2.0: brandCode starts with "WP2"
-  if (brandCode.startsWith('WP2')) {
-    return { newName: name, newRange: 'Speedpaint 2.0', newPaintType: 'speedpaint' }
-  }
+  const isSpeedpaint2 = brandCode.startsWith('WP2')
 
   for (const [prefixOrExact, range, paintType, isExact] of ARMY_PAINTER_PREFIX_RULES) {
     if (isExact) {
       if (name === prefixOrExact) {
-        return { newName: name, newRange: range, newPaintType: paintType }
+        return {
+          newName: name,
+          newRange: isSpeedpaint2 ? 'Speedpaint 2.0' : range,
+          newPaintType: isSpeedpaint2 ? 'speedpaint' : paintType,
+        }
       }
     } else {
       if (name.startsWith(prefixOrExact)) {
-        const strippedName = name.slice(prefixOrExact.length)
-        return { newName: strippedName, newRange: range, newPaintType: paintType }
+        const strippedName = name.slice(prefixOrExact.length).trim()
+        if (!strippedName) return null
+        return {
+          newName: strippedName,
+          newRange: isSpeedpaint2 ? 'Speedpaint 2.0' : range,
+          newPaintType: isSpeedpaint2 ? 'speedpaint' : paintType,
+        }
       }
     }
   }
 
-  // No rule matched — row doesn't need migration
+  if (isSpeedpaint2) {
+    return { newName: name, newRange: 'Speedpaint 2.0', newPaintType: 'speedpaint' }
+  }
+
   return null
 }
 
