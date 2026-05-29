@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-29 (after PR #72 — Army Painter name normalization migration)
+Last updated: 2026-05-29 (after PR #74 — infinite scroll for catalog browse and search)
 
 ## Architecture
 
@@ -92,7 +92,7 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 - `addScheme / removeScheme`, `addPaint / removePaint / updatePaint`
 
 **catalogSync.ts** (authenticated unless noted)
-- `searchCatalog({ q, brand?, range?, colorFamily?, limit? })` → `CatalogPaint[]` — auth required; uses `search_name` searchIndex with optional `range` and `colorFamily` filters; limit clamped 1–25 (default 10)
+- `searchCatalog({ q, brand?, range?, colorFamily?, limit? })` → `CatalogPaint[]` — auth required; uses `search_name` searchIndex with optional `range` and `colorFamily` filters; limit clamped 1–100 (default 10)
 - `browseCatalog({ brand?, range?, colorFamily?, paginationOpts })` → paginated `CatalogPaint[]` — auth required; uses `by_brand_range` index; filters by `colorFamily` post-index
 - `getCatalogPaint({ id })` → `CatalogPaint | null` — auth required
 - `lookupCatalogByCode({ code?, barcode? })` → `CatalogPaint | null` — auth required; `code` uses `by_brand_code` index (exact match); `barcode` uses filter scan
@@ -113,7 +113,7 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 
 - **Composable-only data access**: `useConvexQuery`, `useConvexMutation`, `useConvexClient` wrap all Convex calls (ADR-008); `useCatalogSearch`, `useCatalogPaint`, and `useCatalogBrowse` use `client.onUpdate` directly for real-time subscriptions with explicit lifecycle management (immediate watch, disposed guard via `onScopeDispose`, stale `data` cleared on unsubscribe or error, `error` ref exposed to callers)
 - **Domain composables**: `usePaints`, `useSchemes`, `useProjects`, `useImportExport`
-- **`useCatalogBrowse`**: reactive catalog browsing composable; auto-switches between `browseCatalog` (no text query) and `searchCatalog` (≥2 chars) with 300ms debounce; tracks owned paint IDs via `listOwnedCatalogIds`; client-side `hideOwned` filtering; infinite scroll via `loadMore()` with cursor-based pagination (25 items/page); dedicated `listCatalogRanges` subscription provides complete range options for the selected brand; `hasMore` resets on load-more errors to prevent infinite error loops; returns `{ filters, results, isLoading, error, ownedIds, loadMore, hasMore, availableRanges }`
+- **`useCatalogBrowse`**: reactive catalog browsing composable; auto-switches between `browseCatalog` (no text query) and `searchCatalog` (≥2 chars) with 300ms debounce; tracks owned paint IDs via `listOwnedCatalogIds`; client-side `hideOwned` filtering; infinite scroll via `loadMore()` — browse mode uses cursor-based pagination (25 items/page), search mode fetches up to 100 results and reveals 25 at a time via client-side chunking (`allSearchResults` buffer + `searchChunkIndex`); search-mode `loadMore` is synchronous with `nextTick` isLoading guard to prevent IntersectionObserver re-entry; `catalog.vue` uses an IntersectionObserver sentinel (`rootMargin: '200px'`, reactive `watch(sentinelRef)`) replacing the manual "Load more" button; dedicated `listCatalogRanges` subscription provides complete range options for the selected brand; `hasMore` resets on errors in both modes to prevent infinite error loops; returns `{ filters, results, isLoading, error, ownedIds, loadMore, hasMore, availableRanges }`
 - **Auth state**: `useState('auth:isAuthenticated')` as reactive Nuxt state; JWT + refresh token persisted in `localStorage`; in-memory `authToken`/`refreshToken` variables serve as the authoritative fast-path so `fetchToken` avoids synchronous localStorage reads; `signIn`/`signUp` throw `'Backend not available — check CONVEX_URL configuration'` if `$convex` is undefined; `signOut` degrades gracefully (skips remote call, still clears local state)
 - **Token refresh**: `client.setAuth(fetchToken, onAuthChange)` — Convex calls `fetchToken({ forceRefreshToken: true })` before JWT expiry; exchanges refresh token via `api.auth.signIn({ refreshToken })`; rotates refresh token if server returns a new one; failed refresh falls through to `null` triggering clean logout via `onAuthChange`
 - **Data scoping**: every query/mutation resolves `userId` via `ctx.auth.getUserIdentity().subject`
