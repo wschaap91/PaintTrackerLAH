@@ -6,6 +6,7 @@ const router = useRouter()
 const navItems = [
   { label: 'Dashboard', to: '/' },
   { label: 'Paints', to: '/paints' },
+  { label: 'Catalog', to: '/paints/catalog' },
   { label: 'Schemes', to: '/schemes' },
   { label: 'Projects', to: '/projects' },
   { label: 'Discover', to: '/discover' },
