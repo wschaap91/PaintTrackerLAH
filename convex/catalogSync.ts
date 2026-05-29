@@ -13,23 +13,23 @@ declare const process: { env: Record<string, string | undefined> }
 // ---------------------------------------------------------------------------
 
 interface OpenMiniPaintsEntry {
-  id: string
+  _id: string
   brand: string
-  range: string
-  range_code: string
   name: string
-  brand_code: string
-  hex_color: string | null
-  type: string
-  finish: string | null
-  transparency: string | null
-  special_type?: string | null
+  paintType: string
+  hexColor?: string | null
+  brandCode?: string
   barcode?: string | null
+  transparency?: string | null
+  finish?: string | null
+  specialType?: string | null
+  imageUrl?: string | null
 }
 
 interface OpenMiniPaintsPage {
-  data: OpenMiniPaintsEntry[]
-  next_cursor: string | null
+  results: OpenMiniPaintsEntry[]
+  total: number
+  cursor?: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -309,16 +309,15 @@ export const syncCatalog = internalAction({
     let errors = 0
 
     try {
-      let cursor: string | null = null
+      let cursor: string | undefined = undefined
 
       do {
-        const url = new URL(`${siteUrl}/api/paints`)
+        const url = new URL(`${siteUrl}/paints`)
         if (cursor) url.searchParams.set('cursor', cursor)
 
         const response = await fetch(url.toString(), {
           headers: {
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
           },
         })
 
@@ -330,31 +329,31 @@ export const syncCatalog = internalAction({
 
         const page = (await response.json()) as OpenMiniPaintsPage
 
-        for (const entry of page.data) {
+        for (const entry of page.results) {
           try {
             await ctx.runMutation(internal.catalogSync.upsertCatalogPaint, {
-              openMiniPaintsId: entry.id,
+              openMiniPaintsId: entry._id,
               brand: entry.brand,
-              range: entry.range,
-              rangeCode: entry.range_code,
+              range: entry.paintType,
+              rangeCode: '',
               name: entry.name,
-              brandCode: entry.brand_code,
-              hexColor: entry.hex_color ?? null,
-              paintType: entry.type,
+              brandCode: entry.brandCode ?? '',
+              hexColor: entry.hexColor ?? null,
+              paintType: entry.paintType,
               finish: entry.finish ?? null,
               transparency: entry.transparency ?? null,
-              specialType: entry.special_type ?? null,
+              specialType: entry.specialType ?? null,
               barcode: entry.barcode ?? null,
             })
             synced++
           } catch (err) {
-            console.error(`syncCatalog: failed to upsert entry ${entry.id}:`, err)
+            console.error(`syncCatalog: failed to upsert entry ${entry._id}:`, err)
             errors++
           }
         }
 
-        cursor = page.next_cursor
-      } while (cursor !== null)
+        cursor = page.cursor ?? undefined
+      } while (cursor !== undefined)
     } catch (err) {
       console.error('syncCatalog: pagination loop failed:', err)
       errors++
