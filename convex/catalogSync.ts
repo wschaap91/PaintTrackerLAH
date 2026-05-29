@@ -16,6 +16,8 @@ interface OpenMiniPaintsEntry {
   _id: string
   brand: string
   name: string
+  range?: string
+  rangeCode?: string
   paintType: string
   hexColor?: string | null
   brandCode?: string
@@ -334,8 +336,8 @@ export const syncCatalog = internalAction({
             await ctx.runMutation(internal.catalogSync.upsertCatalogPaint, {
               openMiniPaintsId: entry._id,
               brand: entry.brand,
-              range: entry.paintType,
-              rangeCode: '',
+              range: entry.range ?? '',
+              rangeCode: entry.rangeCode ?? '',
               name: entry.name,
               brandCode: entry.brandCode ?? '',
               hexColor: entry.hexColor ?? null,
