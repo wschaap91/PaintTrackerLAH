@@ -41,6 +41,13 @@ export default defineSchema({
     sortOrder: v.number(),
     technique: v.string(),
     notes: v.union(v.string(), v.null()),
+    areaId: v.optional(v.id('schemeAreas')),
+  }).index('by_scheme', ['schemeId']),
+
+  schemeAreas: defineTable({
+    schemeId: v.id('schemes'),
+    name: v.string(),
+    sortOrder: v.number(),
   }).index('by_scheme', ['schemeId']),
 
   projects: defineTable({
