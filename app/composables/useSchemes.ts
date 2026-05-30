@@ -2,7 +2,7 @@ import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
 
 export interface AreaPayload { name: string; sortOrder: number }
-export interface StepPayload { paintId: string | null; technique: string; notes: string | null; areaIndex: number | null }
+export interface StepPayload { paintId: Id<'paints'> | null; technique: string; notes: string | null; areaIndex?: number | null }
 export interface SchemeArea { _id: string; name: string; sortOrder: number }
 export interface SchemeStep { _id: string; paintId: string | null; technique: string; notes: string | null; areaId: string | null; paint?: { name: string; brand: string; hexColor: string } | null }
 
