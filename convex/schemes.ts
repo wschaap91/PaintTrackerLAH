@@ -157,15 +157,9 @@ export const update = mutation({
       await ctx.db.patch(id, rest)
     }
 
-    if (steps !== undefined || areas !== undefined) {
-      const existingSteps = await ctx.db
-        .query('schemeSteps')
-        .withIndex('by_scheme', q => q.eq('schemeId', id))
-        .collect()
-      for (const s of existingSteps) {
-        await ctx.db.delete(s._id)
-      }
+    const areaIdMap = new Map<number, Id<'schemeAreas'>>()
 
+    if (areas !== undefined) {
       const existingAreas = await ctx.db
         .query('schemeAreas')
         .withIndex('by_scheme', q => q.eq('schemeId', id))
@@ -174,32 +168,58 @@ export const update = mutation({
         await ctx.db.delete(a._id)
       }
 
-      const areaIdMap = new Map<number, Id<'schemeAreas'>>()
-      if (areas) {
-        for (let i = 0; i < areas.length; i++) {
-          const area = areas[i]!
-          const areaId = await ctx.db.insert('schemeAreas', {
-            schemeId: id,
-            name: area.name,
-            sortOrder: area.sortOrder,
-          })
-          areaIdMap.set(i, areaId)
+      for (let i = 0; i < areas.length; i++) {
+        const area = areas[i]!
+        const areaId = await ctx.db.insert('schemeAreas', {
+          schemeId: id,
+          name: area.name,
+          sortOrder: area.sortOrder,
+        })
+        areaIdMap.set(i, areaId)
+      }
+    }
+
+    if (steps !== undefined) {
+      const existingSteps = await ctx.db
+        .query('schemeSteps')
+        .withIndex('by_scheme', q => q.eq('schemeId', id))
+        .collect()
+      for (const s of existingSteps) {
+        await ctx.db.delete(s._id)
+      }
+
+      if (areas === undefined) {
+        const existingAreas = await ctx.db
+          .query('schemeAreas')
+          .withIndex('by_scheme', q => q.eq('schemeId', id))
+          .collect()
+        const sortedAreas = existingAreas.sort((a, b) => a.sortOrder - b.sortOrder)
+        for (let i = 0; i < sortedAreas.length; i++) {
+          areaIdMap.set(i, sortedAreas[i]!._id)
         }
       }
 
-      if (steps) {
-        for (let i = 0; i < steps.length; i++) {
-          const step = steps[i]!
-          const areaId =
-            step.areaIndex != null ? areaIdMap.get(step.areaIndex) : undefined
-          await ctx.db.insert('schemeSteps', {
-            schemeId: id,
-            paintId: step.paintId,
-            sortOrder: i,
-            technique: step.technique,
-            notes: step.notes,
-            ...(areaId !== undefined ? { areaId } : {}),
-          })
+      for (let i = 0; i < steps.length; i++) {
+        const step = steps[i]!
+        const areaId =
+          step.areaIndex != null ? areaIdMap.get(step.areaIndex) : undefined
+        await ctx.db.insert('schemeSteps', {
+          schemeId: id,
+          paintId: step.paintId,
+          sortOrder: i,
+          technique: step.technique,
+          notes: step.notes,
+          ...(areaId !== undefined ? { areaId } : {}),
+        })
+      }
+    } else if (areas !== undefined) {
+      const existingSteps = await ctx.db
+        .query('schemeSteps')
+        .withIndex('by_scheme', q => q.eq('schemeId', id))
+        .collect()
+      for (const step of existingSteps) {
+        if (step.areaId !== undefined) {
+          await ctx.db.patch(step._id, { areaId: undefined })
         }
       }
     }
