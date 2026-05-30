@@ -107,7 +107,10 @@ export const get = query({
     const ownedPaints = await ctx.db
       .query('paints')
       .withIndex('by_user', q => q.eq('userId', userId))
-      .filter(q => q.eq(q.field('status'), 'owned'))
+      .filter(q => q.or(
+        q.eq(q.field('status'), 'owned'),
+        q.eq(q.field('status'), 'running_low'),
+      ))
       .collect()
     const ownedPaintIds = new Set(ownedPaints.map(p => p._id))
 
@@ -118,7 +121,7 @@ export const get = query({
     )
 
     const missingPaints = missingPaintDocs
-      .filter((p): p is NonNullable<typeof p> => p !== null)
+      .filter((p): p is NonNullable<typeof p> => p !== null && (!p.userId || p.userId === userId))
       .map(p => ({
         _id: p._id,
         name: p.name,

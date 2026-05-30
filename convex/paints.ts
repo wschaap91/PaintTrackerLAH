@@ -257,12 +257,13 @@ export const getPublicShoppingList = query({
       .withIndex('by_shopping_list_slug', q => q.eq('shoppingListSlug', args.slug))
       .unique()
 
-    if (!settings || !settings.shoppingListPublic) return null
+    if (!settings) return null
+    if (!settings.shoppingListPublic) return { private: true as const }
 
     const paints = await ctx.db
       .query('paints')
       .withIndex('by_user', q => q.eq('userId', settings.userId))
-      .collect()
+      .take(500)
 
     const items = paints
       .filter(p => SHOPPING_LIST_STATUSES.has(p.status))
@@ -300,6 +301,10 @@ export const setShoppingListPublic = mutation({
     if (args.isPublic && !slug) {
       const { nanoid } = await import('nanoid')
       slug = `shopping-list-${nanoid(6)}`
+    }
+
+    if (args.isPublic && !slug) {
+      throw new Error('Failed to generate shopping list slug')
     }
 
     if (existing) {
