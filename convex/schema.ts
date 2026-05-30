@@ -50,6 +50,12 @@ export default defineSchema({
     sortOrder: v.number(),
   }).index('by_scheme', ['schemeId']),
 
+  userSettings: defineTable({
+    userId: v.string(),
+    shoppingListPublic: v.boolean(),
+    shoppingListSlug: v.optional(v.string()),
+  }).index('by_user', ['userId']).index('by_shopping_list_slug', ['shoppingListSlug']),
+
   projects: defineTable({
     userId: v.optional(v.string()),
     name: v.string(),
