@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-29 (after PR #77 — deferred review findings fix)
+Last updated: 2026-05-30 (after PR #103 — v8 Wave 1: schema foundations, mobile nav, shopping & filter backends)
 
 ## Architecture
 
@@ -9,7 +9,7 @@ Nuxt 4 SPA frontend communicates with Convex Cloud exclusively through a single 
 - Frontend → Convex Cloud via ConvexClient (WebSocket + HTTP)
 - Auth → @convex-dev/auth Password provider; JWT + refresh token stored in localStorage (ADR-004)
 - Token refresh: `fetchToken({ forceRefreshToken })` callback exchanges refresh token for a fresh JWT ~10s before expiry, enabling sessions up to 30 days
-- Public routes: `/s/[slug]`, `/discover`, `/auth/*` — no token required
+- Public routes: `/s/[slug]`, `/discover`, `/auth/*`, `/shopping` — no token required
 
 ## Stack
 
@@ -39,7 +39,12 @@ Nuxt 4 SPA frontend communicates with Convex Cloud exclusively through a single 
 
 // schemeSteps — ordered steps within a scheme
 { schemeId: Id<"schemes">, paintId: Id<"paints">,
-  stepOrder: number, label?: string, notes?: string }
+  stepOrder: number, label?: string, notes?: string,
+  areaId?: Id<"schemeAreas"> }
+// indexes: by_scheme
+
+// schemeAreas — named areas within a scheme (e.g. base, highlights)
+{ schemeId: Id<"schemes">, name: string, sortOrder: number }
 // indexes: by_scheme
 
 // projects — painting projects
@@ -54,6 +59,10 @@ Nuxt 4 SPA frontend communicates with Convex Cloud exclusively through a single 
 { projectId: Id<"projects">, paintId: Id<"paints">,
   quantityNeeded?: number, quantityUsed?: number }
 // indexes: by_project
+
+// userSettings — per-user settings
+{ userId: string, shoppingListPublic: boolean, shoppingListSlug?: string }
+// indexes: by_user, by_shopping_list_slug
 
 // catalogPaints — read-only paint catalog (synced from OpenMiniPaints API)
 { brand: string, range: string, rangeCode: string, name: string,
@@ -79,6 +88,11 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 - `bulkCreate({ paints[], onDuplicate: 'skip' | 'update' })` → `{ added, skipped, updated }` — dedupes by name+brand; each paint accepts `catalogPaintId?`
 - `search({ query })` → `Paint[]`
 - `listOwnedCatalogIds({})` → `Id<"catalogPaints">[]` — returns catalog paint IDs the user already owns
+- `listDistinctBrands({})` → `string[]` — authenticated; returns deduplicated sorted brand names from user's paints
+- `getShoppingList({})` → shopping-status paints (wishlist/running_low/empty), sorted by brand+name — authenticated
+- `getPublicShoppingList({ slug })` → `{ items } | { private: true } | null` — **NO AUTH**; returns null if slug not found, `{ private: true }` if list is private, `{ items }` if public; capped at 500 paints
+- `setShoppingListPublic({ isPublic })` → `string | null` — mutation; generates nanoid slug on first publish; throws if slug generation fails — authenticated
+- `getUserShoppingSettings({})` → `{ shoppingListPublic, shoppingListSlug } | null` — authenticated
 
 **schemes.ts** (authenticated unless noted)
 - `list({})`, `get({ id })`, `create(...)`, `update(...)`, `remove({ id })`
@@ -88,7 +102,7 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 - `listPublicSchemes({})` → public schemes — **NO AUTH**
 
 **projects.ts** (all authenticated)
-- `list({})`, `get({ id })`, `create(...)`, `update(...)`, `remove({ id })`
+- `list({})`, `get({ id })` — `get` also returns `missingPaints`: gap analysis of paints used in scheme steps that the user doesn't own (status owned/running_low treated as possessed); ownership-verified against the caller's own paints only; `create(...)`, `update(...)`, `remove({ id })`
 - `addScheme / removeScheme`, `addPaint / removePaint / updatePaint`
 
 **catalogSync.ts** (authenticated unless noted)
@@ -98,6 +112,7 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 - `lookupCatalogByCode({ code?, barcode? })` → `CatalogPaint | null` — auth required; `code` uses `by_brand_code` index (exact match); `barcode` uses filter scan
 - `addFromCatalog({ catalogPaintId })` → `Id<"paints">` — auth required; creates owned paint from catalog entry; throws if user already owns a paint with same `catalogPaintId`
 - `listCatalogRanges({ brand? })` → `string[]` — auth required; returns distinct range values from `catalogPaints`, optionally filtered by brand using `by_brand_range` index
+- `listCatalogBrands({})` → `string[]` — auth required; returns distinct brand values from `catalogPaints`
 - `internal.upsertCatalogPaint(...)` — internalMutation; upserts by `openMiniPaintsId`, fallback brand+brandCode for pre-sync rows; always sets `syncedAt`; computes and stores `colorFamily` via `classifyColorFamily`
 - `internal.syncCatalog({})` — internalAction; cursor-paged HTTP fetch from OpenMiniPaints API; scheduled nightly via `crons.ts`; returns `{ synced, errors }`
 - `internal.backfillColorFamily({})` — internalAction; paginates all `catalogPaints` rows and calls `backfillColorFamilyBatch` to fill missing `colorFamily` values
@@ -134,7 +149,7 @@ app/
                   PaintImportExport, PaintQuickAdd
     project/      ProjectCard, ProjectForm
     scheme/       SchemeCard, SchemeForm, SchemeStepEditor
-    ui/           AppHeader, ColorSwatch, EmptyState, StatusBadge
+    ui/           AppHeader, BottomTabBar, ColorSwatch, EmptyState, StatusBadge
   composables/    useAuth.ts, useCatalogBrowse.ts, useCatalogSearch.ts, useConvex.ts,
                   useImportExport.ts, usePaints.ts, useProjects.ts, useSchemes.ts
   layouts/        default.vue
@@ -143,6 +158,7 @@ app/
     auth/         login.vue, register.vue
     s/            [slug].vue  (public)
     discover.vue              (public)
+    shopping.vue              (public, placeholder)
     paints/       index.vue, add.vue, catalog.vue, [id].vue
     schemes/      index.vue, [id].vue
     projects/     index.vue, [id].vue
