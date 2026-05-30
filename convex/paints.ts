@@ -207,3 +207,13 @@ export const lookup = query({
     return null
   },
 })
+
+export const listDistinctBrands = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return []
+    const paints = await ctx.db.query('paints').withIndex('by_user', q => q.eq('userId', userId)).collect()
+    return Array.from(new Set(paints.map(p => p.brand))).sort()
+  },
+})
