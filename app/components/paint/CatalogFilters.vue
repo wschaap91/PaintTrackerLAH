@@ -9,9 +9,9 @@ const filters = defineModel<{
 
 defineProps<{
   ranges: string[]
+  brands: string[]
 }>()
 
-const brands = ['', 'Citadel', 'Vallejo', 'Army Painter', 'Scale75', 'AK Interactive', 'ProAcryl']
 const colorFamilies = ['', 'red', 'orange', 'yellow', 'green', 'blue', 'purple', 'pink', 'brown', 'black', 'white', 'grey', 'metallic']
 
 watch(() => filters.value.brand, () => {
@@ -39,7 +39,8 @@ watch(() => filters.value.brand, () => {
         v-model="filters.brand"
         class="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-accent-500"
       >
-        <option v-for="b in brands" :key="b" :value="b">{{ b || 'All Brands' }}</option>
+        <option value="">All Brands</option>
+        <option v-for="b in brands" :key="b" :value="b">{{ b }}</option>
       </select>
     </div>
 
