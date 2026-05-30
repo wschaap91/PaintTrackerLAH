@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-30 (after PR #103 — v8 Wave 1: schema foundations, mobile nav, shopping & filter backends)
+Last updated: 2026-05-30 (after PR #105 — v8 Wave 2: area mutations, shopping list, dynamic filters, mobile wiring)
 
 ## Architecture
 
@@ -9,7 +9,7 @@ Nuxt 4 SPA frontend communicates with Convex Cloud exclusively through a single 
 - Frontend → Convex Cloud via ConvexClient (WebSocket + HTTP)
 - Auth → @convex-dev/auth Password provider; JWT + refresh token stored in localStorage (ADR-004)
 - Token refresh: `fetchToken({ forceRefreshToken })` callback exchanges refresh token for a fresh JWT ~10s before expiry, enabling sessions up to 30 days
-- Public routes: `/s/[slug]`, `/discover`, `/auth/*`, `/shopping` — no token required
+- Public routes: `/s/[slug]`, `/s/shopping/[slug]`, `/discover`, `/auth/*`, `/shopping` — no token required
 
 ## Stack
 
@@ -95,8 +95,10 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 - `getUserShoppingSettings({})` → `{ shoppingListPublic, shoppingListSlug } | null` — authenticated
 
 **schemes.ts** (authenticated unless noted)
-- `list({})`, `get({ id })`, `create(...)`, `update(...)`, `remove({ id })`
-- `addStep / removeStep / updateStep / reorderSteps`
+- `list({})`, `get({ id })`, `remove({ id })`
+- `create({ name, description?, steps?, areas? })` — `steps` accept `areaIndex?` to link step to an area by position; `areas` is `{ name, sortOrder }[]`
+- `update({ id, ...fields })` — areas and steps are updated independently to avoid data loss; patch-style for both collections
+- `addStep / removeStep / updateStep / reorderSteps` — `addStep`/`updateStep` accept `areaId?`
 - `setPublic({ schemeId, isPublic })` — generates nanoid slug on first publish
 - `getPublicScheme({ slug })` → projected safe fields — **NO AUTH**
 - `listPublicSchemes({})` → public schemes — **NO AUTH**
@@ -127,8 +129,8 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 ## Key Patterns
 
 - **Composable-only data access**: `useConvexQuery`, `useConvexMutation`, `useConvexClient` wrap all Convex calls (ADR-008); `useCatalogSearch`, `useCatalogPaint`, and `useCatalogBrowse` use `client.onUpdate` directly for real-time subscriptions with explicit lifecycle management (immediate watch, disposed guard via `onScopeDispose`, stale `data` cleared on unsubscribe or error, `error` ref exposed to callers)
-- **Domain composables**: `usePaints`, `useSchemes`, `useProjects`, `useImportExport`
-- **`useCatalogBrowse`**: reactive catalog browsing composable; auto-switches between `browseCatalog` (no text query) and `searchCatalog` (≥2 chars) with 300ms debounce; tracks owned paint IDs via `listOwnedCatalogIds`; client-side `hideOwned` filtering; infinite scroll via `loadMore()` — browse mode uses cursor-based pagination (25 items/page), search mode fetches up to 100 results and reveals 25 at a time via client-side chunking (`allSearchResults` buffer + `searchChunkIndex`); search-mode `loadMore` is synchronous with `nextTick` isLoading guard to prevent IntersectionObserver re-entry; `catalog.vue` uses an IntersectionObserver sentinel (`rootMargin: '200px'`, reactive `watch(sentinelRef)`) replacing the manual "Load more" button; dedicated `listCatalogRanges` subscription provides complete range options for the selected brand; `hasMore` resets on errors in both modes to prevent infinite error loops; returns `{ filters, results, isLoading, error, ownedIds, loadMore, hasMore, availableRanges }`
+- **Domain composables**: `usePaints`, `useSchemes`, `useProjects`, `useImportExport`, `useShoppingList` — `useShoppingList` exposes `{ items, isLoading, error }` from `getShoppingList` and `{ settings, isLoading, error, setPublic }` from `getUserShoppingSettings` + `setShoppingListPublic`
+- **`useCatalogBrowse`**: reactive catalog browsing composable; auto-switches between `browseCatalog` (no text query) and `searchCatalog` (≥2 chars) with 300ms debounce; tracks owned paint IDs via `listOwnedCatalogIds`; client-side `hideOwned` filtering; infinite scroll via `loadMore()` — browse mode uses cursor-based pagination (25 items/page), search mode fetches up to 100 results and reveals 25 at a time via client-side chunking (`allSearchResults` buffer + `searchChunkIndex`); search-mode `loadMore` is synchronous with `nextTick` isLoading guard to prevent IntersectionObserver re-entry; `catalog.vue` uses an IntersectionObserver sentinel (`rootMargin: '200px'`, reactive `watch(sentinelRef)`) replacing the manual "Load more" button; dedicated `listCatalogRanges` subscription provides complete range options for the selected brand; `hasMore` resets on errors in both modes to prevent infinite error loops; subscribes to `listCatalogBrands` and returns `{ filters, results, isLoading, error, ownedIds, loadMore, hasMore, availableRanges, availableBrands }` — `CatalogFilters` and `PaintFilters` receive `brands` as a prop (no longer hardcoded)
 - **Auth state**: `useState('auth:isAuthenticated')` as reactive Nuxt state; JWT + refresh token persisted in `localStorage`; in-memory `authToken`/`refreshToken` variables serve as the authoritative fast-path so `fetchToken` avoids synchronous localStorage reads; `signIn`/`signUp` throw `'Backend not available — check CONVEX_URL configuration'` if `$convex` is undefined; `signOut` degrades gracefully (skips remote call, still clears local state)
 - **Token refresh**: `client.setAuth(fetchToken, onAuthChange)` — Convex calls `fetchToken({ forceRefreshToken: true })` before JWT expiry; exchanges refresh token via `api.auth.signIn({ refreshToken })`; rotates refresh token if server returns a new one; failed refresh falls through to `null` triggering clean logout via `onAuthChange`
 - **Data scoping**: every query/mutation resolves `userId` via `ctx.auth.getUserIdentity().subject`
@@ -151,12 +153,13 @@ app/
     scheme/       SchemeCard, SchemeForm, SchemeStepEditor
     ui/           AppHeader, BottomTabBar, ColorSwatch, EmptyState, StatusBadge
   composables/    useAuth.ts, useCatalogBrowse.ts, useCatalogSearch.ts, useConvex.ts,
-                  useImportExport.ts, usePaints.ts, useProjects.ts, useSchemes.ts
+                  useImportExport.ts, usePaints.ts, useProjects.ts, useSchemes.ts,
+                  useShoppingList.ts
   layouts/        default.vue
   middleware/     auth.global.ts
   pages/
     auth/         login.vue, register.vue
-    s/            [slug].vue  (public)
+    s/            [slug].vue  (public), shopping/[slug].vue  (public)
     discover.vue              (public)
     shopping.vue              (public, placeholder)
     paints/       index.vue, add.vue, catalog.vue, [id].vue

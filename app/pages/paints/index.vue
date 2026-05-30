@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { api } from '../../../convex/_generated/api'
+
 const filters = ref({
   brand: '',
   paintType: '',
@@ -7,6 +9,7 @@ const filters = ref({
 })
 
 const { paints, isLoading } = usePaints(filters)
+const { data: brandData } = useConvexQuery(api.paints.listDistinctBrands, {})
 const showQuickAdd = ref(false)
 const showImportExport = ref(false)
 </script>
@@ -52,7 +55,7 @@ const showImportExport = ref(false)
       <PaintImportExport :paints="paints ?? []" />
     </div>
 
-    <PaintFilters v-model="filters" />
+    <PaintFilters v-model="filters" :brands="brandData ?? []" />
 
     <div v-if="isLoading" class="text-center py-12 text-sm text-gray-500">
       Loading...
@@ -74,7 +77,7 @@ const showImportExport = ref(false)
     </div>
 
     <button
-      class="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-accent-600 text-white shadow-lg hover:bg-accent-700 transition-colors flex items-center justify-center sm:hidden"
+      class="fixed bottom-20 right-6 w-14 h-14 rounded-full bg-accent-600 text-white shadow-lg hover:bg-accent-700 transition-colors flex items-center justify-center sm:hidden"
       aria-label="Quick add paint"
       @click="showQuickAdd = true"
     >

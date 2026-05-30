@@ -30,6 +30,7 @@ export function useCatalogBrowse() {
   const hasMore = ref(false)
   const ownedIds = ref<Set<string>>(new Set())
   const availableRanges = ref<string[]>([])
+  const availableBrands = ref<string[]>([])
 
   // ---------------------------------------------------------------------------
   // Internal cursor / subscription tracking
@@ -38,6 +39,7 @@ export function useCatalogBrowse() {
   let pageUnsubs: Array<() => void> = []
   let ownedUnsub: (() => void) | null = null
   let rangesUnsub: (() => void) | null = null
+  let brandsUnsub: (() => void) | null = null
   let disposed = false
 
   // Search mode chunking state
@@ -86,6 +88,27 @@ export function useCatalogBrowse() {
       },
       (_err: Error) => {
         // Non-fatal: keep previous ranges
+      },
+    )
+  }
+
+  // ---------------------------------------------------------------------------
+  // Brands subscription (always active)
+  // ---------------------------------------------------------------------------
+  function subscribeBrands() {
+    if (brandsUnsub) {
+      brandsUnsub()
+      brandsUnsub = null
+    }
+    if (disposed) return
+    brandsUnsub = client.onUpdate(
+      api.catalogSync.listCatalogBrands,
+      {},
+      (data: string[]) => {
+        availableBrands.value = data
+      },
+      (_err: Error) => {
+        // Non-fatal: keep previous brands
       },
     )
   }
@@ -277,6 +300,7 @@ export function useCatalogBrowse() {
   // Initial load
   subscribeOwnedIds()
   subscribeRanges()
+  subscribeBrands()
   isLoading.value = true
   subscribeBrowsePage(null, false)
 
@@ -291,6 +315,7 @@ export function useCatalogBrowse() {
     teardownSearch()
     if (ownedUnsub) ownedUnsub()
     if (rangesUnsub) rangesUnsub()
+    if (brandsUnsub) brandsUnsub()
   })
 
   return {
@@ -302,5 +327,6 @@ export function useCatalogBrowse() {
     loadMore,
     hasMore,
     availableRanges,
+    availableBrands,
   }
 }

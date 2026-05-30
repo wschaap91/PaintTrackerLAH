@@ -2,7 +2,7 @@
 import { api } from '../../../convex/_generated/api'
 import type { Id } from '../../../convex/_generated/dataModel'
 
-const { filters, results, isLoading, error, ownedIds, loadMore, hasMore, availableRanges } = useCatalogBrowse()
+const { filters, results, isLoading, error, ownedIds, loadMore, hasMore, availableRanges, availableBrands } = useCatalogBrowse()
 
 const addFromCatalog = useConvexMutation(api.catalogSync.addFromCatalog)
 
@@ -81,7 +81,7 @@ onUnmounted(() => {
       Failed to load catalog: {{ error.message }}
     </div>
 
-    <CatalogFilters v-model="filters" :ranges="availableRanges" />
+    <CatalogFilters v-model="filters" :ranges="availableRanges" :brands="availableBrands" />
 
     <div v-if="isLoading && results.length === 0" class="text-center py-12 text-sm text-gray-500">
       Loading...
