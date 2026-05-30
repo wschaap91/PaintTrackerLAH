@@ -207,3 +207,136 @@ export const lookup = query({
     return null
   },
 })
+
+export const listDistinctBrands = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return []
+    const paints = await ctx.db.query('paints').withIndex('by_user', q => q.eq('userId', userId)).collect()
+    return Array.from(new Set(paints.map(p => p.brand))).sort()
+  },
+})
+
+const SHOPPING_LIST_STATUSES = new Set(['wishlist', 'running_low', 'empty'])
+
+export const getShoppingList = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return []
+
+    const paints = await ctx.db
+      .query('paints')
+      .withIndex('by_user', q => q.eq('userId', userId))
+      .collect()
+
+    return paints
+      .filter(p => SHOPPING_LIST_STATUSES.has(p.status))
+      .sort((a, b) => {
+        const brandCmp = a.brand.localeCompare(b.brand)
+        return brandCmp !== 0 ? brandCmp : a.name.localeCompare(b.name)
+      })
+      .map(p => ({
+        _id: p._id,
+        status: p.status,
+        brand: p.brand,
+        name: p.name,
+        hexColor: p.hexColor,
+        brandCode: p.brandCode,
+        paintType: p.paintType,
+      }))
+  },
+})
+
+export const getPublicShoppingList = query({
+  args: { slug: v.string() },
+  handler: async (ctx, args) => {
+    const settings = await ctx.db
+      .query('userSettings')
+      .withIndex('by_shopping_list_slug', q => q.eq('shoppingListSlug', args.slug))
+      .unique()
+
+    if (!settings) return null
+    if (!settings.shoppingListPublic) return { private: true as const }
+
+    const paints = await ctx.db
+      .query('paints')
+      .withIndex('by_user', q => q.eq('userId', settings.userId))
+      .take(500)
+
+    const items = paints
+      .filter(p => SHOPPING_LIST_STATUSES.has(p.status))
+      .sort((a, b) => {
+        const brandCmp = a.brand.localeCompare(b.brand)
+        return brandCmp !== 0 ? brandCmp : a.name.localeCompare(b.name)
+      })
+      .map(p => ({
+        _id: p._id,
+        status: p.status,
+        brand: p.brand,
+        name: p.name,
+        hexColor: p.hexColor,
+        brandCode: p.brandCode,
+        paintType: p.paintType,
+      }))
+
+    return { items }
+  },
+})
+
+export const setShoppingListPublic = mutation({
+  args: { isPublic: v.boolean() },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) throw new Error('Unauthenticated')
+
+    const existing = await ctx.db
+      .query('userSettings')
+      .withIndex('by_user', q => q.eq('userId', userId))
+      .unique()
+
+    let slug = existing?.shoppingListSlug
+
+    if (args.isPublic && !slug) {
+      const { nanoid } = await import('nanoid')
+      slug = `shopping-list-${nanoid(6)}`
+    }
+
+    if (args.isPublic && !slug) {
+      throw new Error('Failed to generate shopping list slug')
+    }
+
+    if (existing) {
+      await ctx.db.patch(existing._id, { shoppingListPublic: args.isPublic, shoppingListSlug: slug })
+    } else {
+      await ctx.db.insert('userSettings', {
+        userId,
+        shoppingListPublic: args.isPublic,
+        shoppingListSlug: slug,
+      })
+    }
+
+    return slug ?? null
+  },
+})
+
+export const getUserShoppingSettings = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx)
+    if (!userId) return null
+
+    const settings = await ctx.db
+      .query('userSettings')
+      .withIndex('by_user', q => q.eq('userId', userId))
+      .unique()
+
+    if (!settings) return null
+
+    return {
+      shoppingListPublic: settings.shoppingListPublic,
+      shoppingListSlug: settings.shoppingListSlug,
+    }
+  },
+})

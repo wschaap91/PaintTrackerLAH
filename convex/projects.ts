@@ -1,6 +1,7 @@
 import { query, mutation } from './_generated/server'
 import { v } from 'convex/values'
 import { getAuthUserId } from './lib'
+import type { Id } from './_generated/dataModel'
 
 export const list = query({
   handler: async (ctx) => {
@@ -69,6 +70,8 @@ export const get = query({
       .withIndex('by_project', q => q.eq('projectId', args.id))
       .collect()
 
+    const stepPaintIds = new Set<Id<'paints'>>()
+
     const schemes = await Promise.all(
       schemeLinks.map(async (link) => {
         const scheme = await ctx.db.get(link.schemeId)
@@ -82,6 +85,7 @@ export const get = query({
         const swatches: string[] = []
         for (const step of sortedSteps) {
           if (step.paintId) {
+            stepPaintIds.add(step.paintId)
             const paint = await ctx.db.get(step.paintId)
             if (paint) swatches.push(paint.hexColor)
           }
@@ -99,10 +103,39 @@ export const get = query({
       paintLinks.map(link => ctx.db.get(link.paintId)),
     )
 
+    // Gap analysis: find paints used in scheme steps that the user does not own
+    const ownedPaints = await ctx.db
+      .query('paints')
+      .withIndex('by_user', q => q.eq('userId', userId))
+      .filter(q => q.or(
+        q.eq(q.field('status'), 'owned'),
+        q.eq(q.field('status'), 'running_low'),
+      ))
+      .collect()
+    const ownedPaintIds = new Set(ownedPaints.map(p => p._id))
+
+    const missingPaintDocs = await Promise.all(
+      Array.from(stepPaintIds)
+        .filter(id => !ownedPaintIds.has(id))
+        .map(id => ctx.db.get(id)),
+    )
+
+    const missingPaints = missingPaintDocs
+      .filter((p): p is NonNullable<typeof p> => p !== null && (!p.userId || p.userId === userId))
+      .map(p => ({
+        _id: p._id,
+        name: p.name,
+        brand: p.brand,
+        hexColor: p.hexColor,
+        brandCode: p.brandCode,
+        paintType: p.paintType,
+      }))
+
     return {
       ...project,
       schemes: schemes.filter(Boolean),
       paints: paints.filter(Boolean),
+      missingPaints,
     }
   },
 })

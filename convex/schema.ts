@@ -41,7 +41,20 @@ export default defineSchema({
     sortOrder: v.number(),
     technique: v.string(),
     notes: v.union(v.string(), v.null()),
+    areaId: v.optional(v.id('schemeAreas')),
   }).index('by_scheme', ['schemeId']),
+
+  schemeAreas: defineTable({
+    schemeId: v.id('schemes'),
+    name: v.string(),
+    sortOrder: v.number(),
+  }).index('by_scheme', ['schemeId']),
+
+  userSettings: defineTable({
+    userId: v.string(),
+    shoppingListPublic: v.boolean(),
+    shoppingListSlug: v.optional(v.string()),
+  }).index('by_user', ['userId']).index('by_shopping_list_slug', ['shoppingListSlug']),
 
   projects: defineTable({
     userId: v.optional(v.string()),
