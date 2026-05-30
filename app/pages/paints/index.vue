@@ -74,7 +74,7 @@ const showImportExport = ref(false)
     </div>
 
     <button
-      class="fixed bottom-6 right-6 w-14 h-14 rounded-full bg-accent-600 text-white shadow-lg hover:bg-accent-700 transition-colors flex items-center justify-center sm:hidden"
+      class="fixed bottom-20 right-6 w-14 h-14 rounded-full bg-accent-600 text-white shadow-lg hover:bg-accent-700 transition-colors flex items-center justify-center sm:hidden"
       aria-label="Quick add paint"
       @click="showQuickAdd = true"
     >
