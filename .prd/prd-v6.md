@@ -39,3 +39,18 @@ Review findings that scored 50-79 — real but below the noise threshold. These 
 | Score | File | Finding | Suggestion |
 |-------|------|---------|------------|
 | 65 | convex/colorFamily.ts:3 | `classifyColorFamily()` returns plain `string` instead of a string literal union of the 12 known color families — loses compile-time exhaustiveness checking and allows schema to store arbitrary strings | Define `ColorFamily` type as `'red' \| 'orange' \| ... \| 'metallic'`, use as return type, and update schema to use `v.union(v.literal(...), ...)` |
+
+## PR #103 — feat: v8 Wave 1 — schema foundations, mobile nav, shopping & filter backends (2026-05-30)
+
+### Pattern: code-quality-reviewer + history-reviewer (2 findings)
+
+| Score | File | Finding | Suggestion |
+|-------|------|---------|------------|
+| 70 | convex/catalogSync.ts:287 | `listCatalogBrands` does a full table scan via `.collect()` with no limit — same anti-pattern as `listPublicSchemes` flagged in CLAUDE.md; diverges from index-first pattern used by `browseCatalog` and `listCatalogRanges` in the same file | Use the existing `by_brand` index for distinct-brand extraction, or add a `.take()` cap and a comment acknowledging the unbounded scan |
+| 55 | convex/schema.ts | `userSettings.userId` uses `v.string()` (required) instead of `v.optional(v.string())` — breaks the project-wide convention documented in CLAUDE.md for user-owned tables | Either change to `v.optional(v.string())` for consistency, or document why this table intentionally requires userId (no legacy rows) |
+
+### Pattern: security-reviewer (1 finding)
+
+| Score | File | Finding | Suggestion |
+|-------|------|---------|------------|
+| 60 | convex/paints.ts | `getPublicShoppingList` returns `_id` (Convex document IDs) to unauthenticated callers — unnecessary internal ID exposure matching the pattern flagged in CLAUDE.md for `getPublicScheme` | Omit `_id` from the public response `.map()` |
