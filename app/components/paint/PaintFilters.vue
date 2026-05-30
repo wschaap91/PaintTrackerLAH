@@ -6,7 +6,8 @@ const filters = defineModel<{
   q: string
 }>({ required: true })
 
-const brands = ['', 'Citadel', 'Vallejo', 'Army Painter', 'Scale75', 'AK Interactive', 'ProAcryl']
+defineProps<{ brands: string[] }>()
+
 const types = ['', 'base', 'layer', 'shade', 'contrast', 'dry', 'technical', 'primer', 'spray']
 const statuses = ['', 'owned', 'running_low', 'empty', 'wishlist']
 
@@ -35,7 +36,8 @@ function formatLabel(value: string): string {
         v-model="filters.brand"
         class="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-accent-500"
       >
-        <option v-for="b in brands" :key="b" :value="b">{{ b || 'All Brands' }}</option>
+        <option value="">All Brands</option>
+        <option v-for="b in brands" :key="b" :value="b">{{ b }}</option>
       </select>
     </div>
     <div class="flex flex-col gap-1">
