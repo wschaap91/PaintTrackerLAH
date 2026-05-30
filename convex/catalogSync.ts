@@ -280,6 +280,20 @@ export const listCatalogRanges = query({
 })
 
 // ---------------------------------------------------------------------------
+// listCatalogBrands — distinct brand values sorted alphabetically (auth required)
+// ---------------------------------------------------------------------------
+
+export const listCatalogBrands = query({
+  args: {},
+  handler: async (ctx): Promise<string[]> => {
+    const identity = await ctx.auth.getUserIdentity()
+    if (!identity) return []
+    const all = await ctx.db.query('catalogPaints').collect()
+    return Array.from(new Set(all.map(p => p.brand))).sort()
+  },
+})
+
+// ---------------------------------------------------------------------------
 // getCatalogPaint — public query (auth required)
 // ---------------------------------------------------------------------------
 
