@@ -107,7 +107,26 @@ async function handleDelete() {
           </div>
         </div>
 
-        <div v-if="!project.schemes.length && !project.paints.length" class="card text-center text-sm text-gray-500 py-8">
+        <div v-if="project.missingPaints?.length" class="mb-8">
+          <h2 class="text-sm font-medium text-gray-700 mb-3">Missing Paints ({{ project.missingPaints.length }})</h2>
+          <p class="text-xs text-gray-400 mb-3">Used in linked schemes but not marked as owned.</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <NuxtLink
+              v-for="paint in project.missingPaints"
+              :key="paint._id"
+              :to="`/paints/${paint._id}`"
+              class="card flex items-center gap-3 hover:shadow-md transition-shadow"
+            >
+              <ColorSwatch :color="paint.hexColor" />
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-900 truncate">{{ paint.name }}</p>
+                <p class="text-xs text-gray-500">{{ paint.brand }}<span v-if="paint.brandCode"> · {{ paint.brandCode }}</span></p>
+              </div>
+            </NuxtLink>
+          </div>
+        </div>
+
+        <div v-if="!project.schemes.length && !project.paints.length && !project.missingPaints?.length" class="card text-center text-sm text-gray-500 py-8">
           No schemes or paints linked yet. Click Edit to add some.
         </div>
       </div>
