@@ -146,12 +146,12 @@ async function handleDelete() {
 
     <template v-else>
       <div v-if="!isEditing">
-        <div class="flex items-start justify-between mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
           <div>
             <h1 class="text-2xl font-semibold text-gray-900">{{ scheme.name }}</h1>
             <p v-if="scheme.description" class="mt-1 text-sm text-gray-500">{{ scheme.description }}</p>
           </div>
-          <div class="flex gap-2">
+          <div class="flex gap-2 flex-shrink-0">
             <button
               class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               @click="isEditing = true"
@@ -213,12 +213,12 @@ async function handleDelete() {
                 scheme.isPublic ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700',
                 isTogglingPublic ? 'opacity-50 cursor-not-allowed' : '',
               ]"
-              class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none"
+              class="relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2"
               @click="togglePublic"
             >
               <span
-                :class="scheme.isPublic ? 'translate-x-6' : 'translate-x-1'"
-                class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform shadow"
+                :class="scheme.isPublic ? 'translate-x-7' : 'translate-x-1'"
+                class="inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow"
               />
             </button>
           </div>
@@ -226,10 +226,10 @@ async function handleDelete() {
             <input
               :value="`${origin}/s/${scheme.slug}`"
               readonly
-              class="flex-1 text-xs border border-gray-200 rounded px-2 py-1.5 bg-gray-50 text-gray-600"
+              class="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 bg-gray-50 text-gray-600"
             />
             <button
-              class="text-xs text-gray-700 border border-gray-200 rounded px-2 py-1.5 hover:bg-gray-50"
+              class="text-sm text-gray-700 border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 flex-shrink-0"
               @click="copyLink"
             >
               {{ copied ? 'Copied!' : copyFailed ? 'Failed!' : 'Copy' }}
@@ -259,11 +259,11 @@ async function handleDelete() {
         <div class="bg-white rounded-xl shadow-lg p-6 max-w-sm mx-4">
           <h3 class="text-lg font-medium text-gray-900">Delete scheme?</h3>
           <p class="mt-2 text-sm text-gray-500">This will permanently remove <strong>{{ scheme.name }}</strong>. Your paints are not affected.</p>
-          <div class="mt-4 flex justify-end gap-3">
-            <button class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50" @click="showDeleteConfirm = false">
+          <div class="mt-4 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+            <button class="rounded-lg border border-gray-200 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50" @click="showDeleteConfirm = false">
               Cancel
             </button>
-            <button class="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700" @click="handleDelete">
+            <button class="rounded-lg bg-red-600 px-3 py-2.5 text-sm font-medium text-white hover:bg-red-700" @click="handleDelete">
               Delete
             </button>
           </div>

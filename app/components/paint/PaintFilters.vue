@@ -18,15 +18,15 @@ function formatLabel(value: string): string {
 </script>
 
 <template>
-  <div class="flex flex-wrap items-end gap-3 mb-6">
-    <div class="flex flex-col gap-1">
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-end gap-3 mb-6">
+    <div class="flex flex-col gap-1 sm:col-span-2 lg:w-64">
       <label for="paint-search" class="text-xs font-medium text-gray-500">Search</label>
       <input
         id="paint-search"
         v-model="filters.q"
         type="text"
         placeholder="Search paints..."
-        class="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent w-full sm:w-64"
+        class="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent"
       >
     </div>
     <div class="flex flex-col gap-1">

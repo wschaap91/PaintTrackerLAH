@@ -67,10 +67,10 @@ function getPaintColor(paintId: string | null): string {
         <div class="flex items-start gap-2 mb-2 p-3 bg-gray-50 rounded-lg">
           <button
             type="button"
-            class="drag-handle text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing mt-2"
+            class="drag-handle p-1.5 -m-1.5 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing mt-2"
             aria-label="Drag to reorder"
           >
-            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
               <path d="M7 4a1 1 0 100 2 1 1 0 000-2zM7 9a1 1 0 100 2 1 1 0 000-2zM7 14a1 1 0 100 2 1 1 0 000-2zM13 4a1 1 0 100 2 1 1 0 000-2zM13 9a1 1 0 100 2 1 1 0 000-2zM13 14a1 1 0 100 2 1 1 0 000-2z" />
             </svg>
           </button>
@@ -108,7 +108,7 @@ function getPaintColor(paintId: string | null): string {
 
           <button
             type="button"
-            class="text-gray-400 hover:text-red-600 transition-colors mt-2"
+            class="p-1.5 -m-1.5 text-gray-400 hover:text-red-600 transition-colors mt-2"
             aria-label="Remove step"
             @click="removeStep(index)"
           >

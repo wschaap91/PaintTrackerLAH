@@ -41,8 +41,9 @@ function isActive(tab: { to: string }): boolean {
       v-for="tab in tabs"
       :key="tab.to"
       :to="tab.to"
-      class="flex flex-col items-center justify-center flex-1 py-2 gap-1 text-xs font-medium transition-colors"
+      class="flex flex-col items-center justify-center flex-1 py-3 gap-1 text-xs font-medium transition-colors"
       :class="isActive(tab) ? 'text-accent-600' : 'text-gray-500'"
+      :aria-current="isActive(tab) ? 'page' : undefined"
     >
       <!-- Paints icon: paint palette -->
       <svg

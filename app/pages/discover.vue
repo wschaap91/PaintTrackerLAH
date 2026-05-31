@@ -114,7 +114,7 @@ async function clone(schemeId: string) {
           :key="mode"
           @click="sortBy = mode"
           :class="sortBy === mode ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'"
-          class="px-3 py-1.5 text-xs font-medium transition-colors capitalize"
+          class="px-4 py-2 text-sm font-medium transition-colors capitalize"
         >
           {{ mode }}
         </button>
@@ -124,7 +124,7 @@ async function clone(schemeId: string) {
       <select
         v-if="allTechniques.length > 0"
         v-model="filterTechnique"
-        class="border border-gray-200 rounded-lg px-3 py-1.5 text-xs text-gray-700 bg-white focus:outline-none"
+        class="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white focus:outline-none"
       >
         <option value="">All techniques</option>
         <option v-for="t in allTechniques" :key="t" :value="t">
@@ -180,14 +180,14 @@ async function clone(schemeId: string) {
           <div class="flex items-center justify-between gap-2">
             <NuxtLink
               :to="`/s/${scheme.slug}`"
-              class="text-xs text-gray-500 hover:text-gray-700 hover:underline"
+              class="text-sm text-gray-500 hover:text-gray-700 hover:underline py-1"
             >
               View →
             </NuxtLink>
             <button
               @click="clone(scheme._id)"
               :disabled="cloning === scheme._id"
-              class="text-xs bg-gray-900 text-white rounded px-3 py-1.5 hover:bg-gray-700 disabled:opacity-50 transition-colors"
+              class="text-sm bg-gray-900 text-white rounded-lg px-3 py-2 hover:bg-gray-700 disabled:opacity-50 transition-colors"
             >
               {{ cloneSuccess === scheme._id ? 'Cloned!' : cloning === scheme._id ? 'Cloning…' : 'Clone' }}
             </button>
