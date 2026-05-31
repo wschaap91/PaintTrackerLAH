@@ -21,7 +21,7 @@ const emit = defineEmits<{
 }>()
 
 const resolvedOwned = computed(() =>
-  props.isOwned ?? (props.paint.status === 'owned' || props.paint.status === 'running_low' || props.paint.status === 'empty')
+  props.isOwned ?? (props.paint.status === 'owned' || props.paint.status === 'running_low')
 )
 
 const resolvedWishlisted = computed(() =>
@@ -34,8 +34,8 @@ function formatType(type: string): string {
   return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
-function handleCardClick() {
-  navigateTo(`/paints/${props.paint._id}`)
+async function handleCardClick() {
+  await navigateTo(`/paints/${props.paint._id}`)
 }
 
 function handleToggleOwned() {

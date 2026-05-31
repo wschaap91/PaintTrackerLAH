@@ -15,17 +15,13 @@ function close() {
   isOpen.value = false
 }
 
-function handleImportExport() {
-  emit('importExport')
+function handleAction(event: 'importExport' | 'logout') {
   close()
-}
-
-function handleLogout() {
-  emit('logout')
-  close()
+  emit(event)
 }
 
 function onOutsideClick(e: MouseEvent) {
+  if (!isOpen.value) return
   if (menuContainer.value && !menuContainer.value.contains(e.target as Node)) {
     close()
   }
@@ -63,14 +59,14 @@ onUnmounted(() => {
     <div v-if="isOpen" class="absolute right-0 mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-lg z-50 py-1">
       <button
         class="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-        @click="handleImportExport"
+        @click="handleAction('importExport')"
       >
         Import / Export
       </button>
       <div class="border-t border-gray-100" />
       <button
         class="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
-        @click="handleLogout"
+        @click="handleAction('logout')"
       >
         Sign out
       </button>

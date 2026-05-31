@@ -56,4 +56,14 @@ describe('ThreeDotMenu', () => {
     expect(wrapper.find('.shadow-lg').exists()).toBe(false)
     wrapper.unmount()
   })
+
+  it('clicking outside closes menu', async () => {
+    const wrapper = mount(ThreeDotMenu, { attachTo: document.body })
+    await wrapper.find('button[aria-label="Open menu"]').trigger('click')
+    expect(wrapper.find('.shadow-lg').exists()).toBe(true)
+    document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('.shadow-lg').exists()).toBe(false)
+    wrapper.unmount()
+  })
 })
