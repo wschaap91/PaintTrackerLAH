@@ -1,9 +1,5 @@
 <script setup lang="ts">
-interface Step {
-  paintId: string | null
-  technique: string
-  notes: string | null
-}
+import type { Step } from './SchemeStepEditor.vue'
 
 const props = defineProps<{
   initial?: {
@@ -23,7 +19,9 @@ const form = reactive({
   description: props.initial?.description ?? '',
 })
 
-const steps = ref<Step[]>(props.initial?.steps ?? [])
+const steps = ref<Step[]>(
+  (props.initial?.steps ?? []).map(s => ({ ...s, _uid: s._uid ?? crypto.randomUUID() })),
+)
 
 const { paints } = usePaints()
 
