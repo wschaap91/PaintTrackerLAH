@@ -63,3 +63,19 @@ Review findings that scored 50–79 — real but below the noise threshold. Thes
 | Score | File | Finding | Suggestion |
 |-------|------|---------|------------|
 | 50 | convex/migrations.ts:53-85 | Tuple type with `isExact` boolean serves a single exact-match entry — over-engineered data structure with branching inside the loop | Handle exact match as a standalone `if` before the loop; use named objects for prefix rules |
+
+## PR #124 — feat: paints page rewrite with unified tabs and catalog integration (2026-05-31)
+
+### Pattern: code-quality-reviewer (1 finding)
+
+| Score | File | Finding | Suggestion |
+|-------|------|---------|------------|
+| 65 | app/pages/paints/index.vue:setupObserver+watch | Double `observer.observe()` — setupObserver observes on mount, then watch(sentinelRef) re-observes the same element, causing duplicate `loadMore()` calls | Remove the `watch(sentinelRef)` block; watch `catalog.hasMore` instead to handle late-mounting |
+
+### Pattern: code-simplifier (3 findings)
+
+| Score | File | Finding | Suggestion |
+|-------|------|---------|------------|
+| 52 | app/pages/paints/index.vue:154,166,172,211 | `owned \|\| running_low \|\| empty` status check repeated 5 times | Extract `isPhysicallyOwned(status)` helper |
+| 68 | app/pages/paints/index.vue:175-202 | `handleCatalogToggleOwned`/`handleCatalogToggleWishlist` are near-duplicate 3-branch structures | Extract parameterized `toggleCatalogStatus(id, target)` |
+| 61 | app/pages/paints/index.vue:template | Owned and Wishlist template blocks (~30 lines each) are nearly identical | Collapse into single block with computed `currentTabPaints` |
