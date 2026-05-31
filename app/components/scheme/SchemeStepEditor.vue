@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import draggable from 'vuedraggable'
 
-interface PaintOption {
+export interface PaintOption {
   _id: string
   name: string
   brand: string
   hexColor: string
 }
 
-interface Step {
+export interface Step {
+  _uid?: string
   paintId: string | null
   technique: string
   notes: string | null
@@ -18,6 +19,7 @@ const steps = defineModel<Step[]>({ required: true })
 
 const props = defineProps<{
   paints: PaintOption[]
+  group?: string
 }>()
 
 const techniques = [
@@ -31,8 +33,14 @@ const techniques = [
   { value: 'contrast', label: 'Contrast' },
 ]
 
+const dragGroup = computed(() => props.group ?? 'steps')
+
+function stepKey(step: Step): string {
+  return step._uid ?? (step.paintId ?? '') + step.technique
+}
+
 function addStep() {
-  steps.value.push({ paintId: null, technique: 'base_coat', notes: null })
+  steps.value.push({ _uid: crypto.randomUUID(), paintId: null, technique: 'base_coat', notes: null })
 }
 
 function removeStep(index: number) {
@@ -50,7 +58,8 @@ function getPaintColor(paintId: string | null): string {
     <draggable
       v-model="steps"
       handle=".drag-handle"
-      item-key="index"
+      :item-key="stepKey"
+      :group="dragGroup"
       :animation="200"
       ghost-class="opacity-50"
     >
