@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-31 (after PR #106 — v8 Wave 3: scheme area types, public area view, shopping share toggle)
+Last updated: 2026-05-31 (after PR #109 — v8 Wave 4: SchemeAreaEditor, shopping page implementation)
 
 ## Architecture
 
@@ -18,7 +18,7 @@ Nuxt 4 SPA frontend communicates with Convex Cloud exclusively through a single 
 - **Vue 3** `^3.5.34` + **vue-router** `^5.0.7`
 - **@nuxtjs/tailwindcss** `^6.14.0` — custom `accent` color palette (ADR-005)
 - **nanoid** `^5.1.11` — slug generation for public scheme sharing (ADR-007)
-- **vuedraggable** `^4.1.0` — drag-to-reorder scheme steps
+- **vuedraggable** `^4.1.0` — drag-to-reorder scheme steps and area reordering (nested drag with shared `group` for cross-area step dragging)
 - **html5-qrcode** `^2.3.8` — barcode scanning for paint lookup
 - **zod** `^4.4.3` — runtime validation
 - **Vercel** (nuxtjs adapter) — frontend host (ADR-006)
@@ -139,6 +139,7 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 - **Catalog-first add flow**: `paints/add.vue` is a three-state UI machine (`search` | `catalog` | `manual`). State `search`: inline debounced catalog search via `useCatalogSearch`, dropdown results, "Add manually" link. State `catalog`: selected paint summary card + `PaintForm` in `catalogMode` (brand, name, type, color, transparency, finish, specialType, barcode, brandCode render as read-only `<p>`; status + notes remain editable); `catalogInitialData` pre-fills the form; `selectedCatalogPaintId` passed to `paints.create` as `catalogPaintId`, cleared after successful submit. State `manual`: full editable `PaintForm`, no catalog link. `PaintCatalogSearch` component still exists in the codebase but is no longer used by `add.vue`.
 - **`useCatalogPaint`**: subscribes to a single catalog paint by `Id<'catalogPaints'>` via `client.onUpdate`; returns `{ data, isLoading, error }` — `error` surfaces auth expiry or network failures that are otherwise indistinguishable from "no ID given"
 - **Quick Add**: `PaintQuickAdd` offers Code and Scan tabs only (Manual tab removed). Code tab accepts a brand code and looks up a matching catalog paint; Scan tab uses the barcode scanner via `html5-qrcode`. On a successful match, a confirmation card is displayed and `addPaint` is called directly. Error messages direct users to the full Add Paint page rather than offering manual input.
+- **`SchemeAreaEditor` pattern**: `SchemeAreaEditor.vue` organises painting steps into named areas with nested vuedraggable; uses shared `group="steps"` so steps can be dragged across areas. Exports `AreaDraft` (draft area with steps array) and `AreaEditorModel` (full editor state) types. `SchemeStepEditor` exports `PaintOption` and `Step` types (previously internal) and adds `_uid?: string` to `Step` for stable drag keys via `stepKey()`; `SchemeForm` imports `Step` from `SchemeStepEditor` (no longer defines a local copy) and backfills `_uid` on init.
 - **Error handling**: try/catch/finally with local `error` ref + `isLoading` ref in page components
 - **Styling**: Tailwind only — no inline styles, no per-component CSS; custom accent palette
 
@@ -151,7 +152,7 @@ app/
                   PaintCard, PaintCatalogSearch, PaintFilters, PaintForm,
                   PaintImportExport, PaintQuickAdd, ShoppingShareToggle
     project/      ProjectCard, ProjectForm
-    scheme/       SchemeCard, SchemeForm, SchemeStepEditor
+    scheme/       SchemeAreaEditor, SchemeCard, SchemeForm, SchemeStepEditor
     ui/           AppHeader, BottomTabBar, ColorSwatch, EmptyState, StatusBadge
   composables/    useAuth.ts, useCatalogBrowse.ts, useCatalogSearch.ts, useConvex.ts,
                   useImportExport.ts, usePaints.ts, useProjects.ts, useSchemes.ts,
@@ -162,7 +163,7 @@ app/
     auth/         login.vue, register.vue
     s/            [slug].vue  (public), shopping/[slug].vue  (public)
     discover.vue              (public)
-    shopping.vue              (public, placeholder)
+    shopping.vue              (authenticated)
     paints/       index.vue, add.vue, catalog.vue, [id].vue
     schemes/      index.vue, [id].vue
     projects/     index.vue, [id].vue
