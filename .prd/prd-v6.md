@@ -39,3 +39,12 @@ Review findings that scored 50-79 — real but below the noise threshold. These 
 | Score | File | Finding | Suggestion |
 |-------|------|---------|------------|
 | 65 | convex/colorFamily.ts:3 | `classifyColorFamily()` returns plain `string` instead of a string literal union of the 12 known color families — loses compile-time exhaustiveness checking and allows schema to store arbitrary strings | Define `ColorFamily` type as `'red' \| 'orange' \| ... \| 'metallic'`, use as return type, and update schema to use `v.union(v.literal(...), ...)` |
+
+## PR #109 — feat: v8 Wave 4 — SchemeAreaEditor and shopping list page (2026-05-31)
+
+### Pattern: code-quality-reviewer + silent-failure-hunter (2 findings)
+
+| Score | File | Finding | Suggestion |
+|-------|------|---------|------------|
+| 75 | app/components/scheme/SchemeStepEditor.vue:38-40 | `stepKey` fallback `(paintId ?? '') + technique` produces duplicate keys for legacy steps without `_uid` that share the same paint and technique — vuedraggable misplaces or drops items silently | Use index-based fallback: `step._uid ?? \`legacy-${index}\`` or backfill `_uid` on load |
+| 70 | app/components/scheme/SchemeAreaEditor.vue:29-35 | `deleteArea(index)` uses array index which can point to the wrong area if drag reorder fires between click and handler execution — wrong area deleted silently, steps moved to ungrouped | Use `_uid` lookup: `deleteArea(uid: string)` with `findIndex` for identity-safe deletion |
