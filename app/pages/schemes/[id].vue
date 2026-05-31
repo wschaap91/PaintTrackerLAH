@@ -63,11 +63,11 @@ const editInitial = computed(() => {
   }
 })
 
-async function handleUpdate(data: { name: string, description: string | null, steps: unknown[] }) {
+async function handleUpdate(data: { name: string, description: string | null, steps: { paintId: string | null, technique: string, notes: string | null }[] }) {
   try {
     error.value = ''
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await update({ id, ...data } as any)
+    // SchemeForm emits paintId as string; at runtime these are Convex Ids — cast to satisfy the mutation's branded-type signature
+    await update({ id, ...data, steps: data.steps as StepPayload[] })
     isEditing.value = false
   }
   catch {
