@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-31 (after PR #109 — v8 Wave 4: SchemeAreaEditor, shopping page implementation)
+Last updated: 2026-05-31 (after PR #111 — v8 Wave 5-6: SchemeForm area wiring, area-grouped view, refine fixes)
 
 ## Architecture
 
@@ -97,7 +97,7 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 **schemes.ts** (authenticated unless noted)
 - `list({})`, `get({ id })`, `remove({ id })`
 - `create({ name, description?, steps?, areas? })` — `steps` accept `areaIndex?` to link step to an area by position; `areas` is `{ name, sortOrder }[]`
-- `update({ id, ...fields })` — areas and steps are updated independently to avoid data loss; patch-style for both collections
+- `update({ id, name?, description?, steps?, areas? })` — delete-and-recreate pattern for both areas and steps (atomic within Convex mutation); if `areas` provided without `steps`, existing step area links are cleared; if `steps` provided without `areas`, existing area sort order is used for areaIndex resolution
 - `addStep / removeStep / updateStep / reorderSteps` — `addStep`/`updateStep` accept `areaId?`
 - `setPublic({ schemeId, isPublic })` — generates nanoid slug on first publish
 - `getPublicScheme({ slug })` → projected safe fields including `areas` and `steps` with `areaId` — **NO AUTH**; public view groups steps by area with section headings, falls back to flat list for legacy schemes without areas
@@ -139,7 +139,10 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 - **Catalog-first add flow**: `paints/add.vue` is a three-state UI machine (`search` | `catalog` | `manual`). State `search`: inline debounced catalog search via `useCatalogSearch`, dropdown results, "Add manually" link. State `catalog`: selected paint summary card + `PaintForm` in `catalogMode` (brand, name, type, color, transparency, finish, specialType, barcode, brandCode render as read-only `<p>`; status + notes remain editable); `catalogInitialData` pre-fills the form; `selectedCatalogPaintId` passed to `paints.create` as `catalogPaintId`, cleared after successful submit. State `manual`: full editable `PaintForm`, no catalog link. `PaintCatalogSearch` component still exists in the codebase but is no longer used by `add.vue`.
 - **`useCatalogPaint`**: subscribes to a single catalog paint by `Id<'catalogPaints'>` via `client.onUpdate`; returns `{ data, isLoading, error }` — `error` surfaces auth expiry or network failures that are otherwise indistinguishable from "no ID given"
 - **Quick Add**: `PaintQuickAdd` offers Code and Scan tabs only (Manual tab removed). Code tab accepts a brand code and looks up a matching catalog paint; Scan tab uses the barcode scanner via `html5-qrcode`. On a successful match, a confirmation card is displayed and `addPaint` is called directly. Error messages direct users to the full Add Paint page rather than offering manual input.
-- **`SchemeAreaEditor` pattern**: `SchemeAreaEditor.vue` organises painting steps into named areas with nested vuedraggable; uses shared `group="steps"` so steps can be dragged across areas. Exports `AreaDraft` (draft area with steps array) and `AreaEditorModel` (full editor state) types. `SchemeStepEditor` exports `PaintOption` and `Step` types (previously internal) and adds `_uid?: string` to `Step` for stable drag keys via `stepKey()`; `SchemeForm` imports `Step` from `SchemeStepEditor` (no longer defines a local copy) and backfills `_uid` on init.
+- **`SchemeAreaEditor` pattern**: `SchemeAreaEditor.vue` organises painting steps into named areas with nested vuedraggable; uses shared `group="steps"` so steps can be dragged across areas. Exports `AreaDraft` (draft area with steps array) and `AreaEditorModel` (full editor state) types. `SchemeStepEditor` exports `PaintOption` and `Step` types (previously internal) and adds `_uid?: string` to `Step` for stable drag keys via `stepKey()`; `SchemeForm` imports `Step` from `SchemeStepEditor` (no longer defines a local copy) and backfills `_uid` on init. On submit, SchemeForm serializes areas as `AreaPayload[]` (name + sortOrder) and steps as `StepPayload[]` (with `areaIndex` linking each step to its parent area by position).
+- **`stepGroups` computed pattern**: both `schemes/[id].vue` and `s/[slug].vue` normalise scheme data into `StepGroup[]` — groups steps by area with `globalIndex` numbering. Handles both area-less (legacy) and area-grouped schemes in one code path. Uses `areaId != null` (loose equality) to handle Convex's `v.optional()` returning `undefined`.
+- **`SchemeStepCard` component**: shared presentational `<li>` for rendering a single step (index, color swatch via `ColorSwatch`, paint name/brand, technique, notes). Used by both scheme detail pages.
+- **Shared utils** (`app/utils/`): `formatTechnique` — converts snake_case technique IDs to Title Case; Nuxt auto-imports from this directory.
 - **Error handling**: try/catch/finally with local `error` ref + `isLoading` ref in page components
 - **Styling**: Tailwind only — no inline styles, no per-component CSS; custom accent palette
 
@@ -152,25 +155,26 @@ app/
                   PaintCard, PaintCatalogSearch, PaintFilters, PaintForm,
                   PaintImportExport, PaintQuickAdd, ShoppingShareToggle
     project/      ProjectCard, ProjectForm
-    scheme/       SchemeAreaEditor, SchemeCard, SchemeForm, SchemeStepEditor
+    scheme/       SchemeAreaEditor, SchemeCard, SchemeForm, SchemeStepCard, SchemeStepEditor
     ui/           AppHeader, BottomTabBar, ColorSwatch, EmptyState, StatusBadge
   composables/    useAuth.ts, useCatalogBrowse.ts, useCatalogSearch.ts, useConvex.ts,
                   useImportExport.ts, usePaints.ts, useProjects.ts, useSchemes.ts,
                   useShoppingList.ts
   layouts/        default.vue
   middleware/     auth.global.ts
+  utils/          format.ts
   pages/
     auth/         login.vue, register.vue
     s/            [slug].vue  (public), shopping/[slug].vue  (public)
     discover.vue              (public)
     shopping.vue              (authenticated)
     paints/       index.vue, add.vue, catalog.vue, [id].vue
-    schemes/      index.vue, [id].vue
+    schemes/      index.vue, add.vue, [id].vue
     projects/     index.vue, [id].vue
   plugins/        convex.client.ts
 convex/
   schema.ts, auth.ts, auth.config.js, http.ts
-  paints.ts, schemes.ts, projects.ts, migrations.ts, catalogSync.ts, crons.ts, colorFamily.ts
+  lib.ts, paints.ts, schemes.ts, projects.ts, migrations.ts, catalogSync.ts, crons.ts, colorFamily.ts
   _generated/     (auto-generated — do not edit)
 ```
 
