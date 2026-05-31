@@ -7,6 +7,9 @@ const route = useRoute()
 const slug = route.params.slug as string
 
 const client = useConvexClient()
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// any is needed here because getPublicScheme returns a loosely-typed Convex document
 const scheme = ref<any>(null)
 const isLoading = ref(true)
 const notFound = ref(false)
@@ -43,6 +46,64 @@ useHead(() => ({
 function formatTechnique(t: string): string {
   return t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
+
+interface Area {
+  _id: string
+  name: string
+  sortOrder: number
+}
+
+interface Step {
+  _id: string
+  technique: string
+  notes?: string
+  areaId?: string | null
+  paint: { name: string; brand: string; hexColor: string } | null
+}
+
+interface StepGroup {
+  areaId: string | null
+  areaName: string
+  steps: Array<Step & { globalIndex: number }>
+}
+
+const stepGroups = computed<StepGroup[]>(() => {
+  if (!scheme.value) return []
+
+  const steps: Step[] = scheme.value.steps ?? []
+  const areas: Area[] = scheme.value.areas ?? []
+
+  if (areas.length === 0) {
+    return [{ areaId: null, areaName: '', steps: steps.map((s, i) => ({ ...s, globalIndex: i + 1 })) }]
+  }
+
+  const grouped = new Map<string | null, Array<Step & { globalIndex: number }>>()
+  grouped.set(null, [])
+  for (const area of areas) {
+    grouped.set(area._id, [])
+  }
+
+  let counter = 1
+  for (const step of steps) {
+    const bucket = step.areaId && grouped.has(step.areaId) ? step.areaId : null
+    grouped.get(bucket)!.push({ ...step, globalIndex: counter++ })
+  }
+
+  const result: StepGroup[] = areas.map(area => ({
+    areaId: area._id,
+    areaName: area.name,
+    steps: grouped.get(area._id) ?? [],
+  }))
+
+  const generalSteps = grouped.get(null) ?? []
+  if (generalSteps.length > 0) {
+    result.push({ areaId: null, areaName: 'General', steps: generalSteps })
+  }
+
+  return result.filter(g => g.steps.length > 0)
+})
+
+const hasAreas = computed(() => (scheme.value?.areas ?? []).length > 0)
 </script>
 
 <template>
@@ -79,31 +140,66 @@ function formatTechnique(t: string): string {
           <p class="mt-2 text-xs text-gray-400">Shared by {{ scheme.authorName }}</p>
         </div>
 
-        <div class="space-y-3">
+        <template v-if="scheme.steps.length === 0">
+          <p class="text-center py-8 text-gray-400 text-sm">This scheme has no steps.</p>
+        </template>
+
+        <template v-else-if="hasAreas">
           <div
-            v-for="(step, i) in scheme.steps"
-            :key="step._id"
-            class="bg-white rounded-lg border border-gray-200 p-4 flex items-center gap-4"
+            v-for="group in stepGroups"
+            :key="group.areaId ?? 'general'"
+            class="mb-8"
           >
-            <span class="text-sm font-medium text-gray-400 w-6">{{ i + 1 }}</span>
-            <div
-              v-if="step.paint"
-              class="w-8 h-8 rounded-full border border-gray-200 flex-shrink-0"
-              :style="{ backgroundColor: step.paint.hexColor }"
-            />
-            <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-gray-900">
-                {{ step.paint ? `${step.paint.brand} — ${step.paint.name}` : 'No paint selected' }}
-              </p>
-              <p class="text-xs text-gray-500">{{ formatTechnique(step.technique) }}</p>
-              <p v-if="step.notes" class="text-xs text-gray-400 mt-0.5">{{ step.notes }}</p>
+            <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+              {{ group.areaName }}
+            </h2>
+            <div class="space-y-3">
+              <div
+                v-for="step in group.steps"
+                :key="step._id"
+                class="bg-white rounded-lg border border-gray-200 p-4 flex items-center gap-4"
+              >
+                <span class="text-sm font-medium text-gray-400 w-6">{{ step.globalIndex }}</span>
+                <div
+                  v-if="step.paint"
+                  class="w-8 h-8 rounded-full border border-gray-200 flex-shrink-0"
+                  :style="{ backgroundColor: step.paint.hexColor }"
+                />
+                <div class="flex-1 min-w-0">
+                  <p class="text-sm font-medium text-gray-900">
+                    {{ step.paint ? `${step.paint.brand} — ${step.paint.name}` : 'No paint selected' }}
+                  </p>
+                  <p class="text-xs text-gray-500">{{ formatTechnique(step.technique) }}</p>
+                  <p v-if="step.notes" class="text-xs text-gray-400 mt-0.5">{{ step.notes }}</p>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        </template>
 
-        <p v-if="scheme.steps.length === 0" class="text-center py-8 text-gray-400 text-sm">
-          This scheme has no steps.
-        </p>
+        <template v-else>
+          <div class="space-y-3">
+            <div
+              v-for="step in stepGroups[0]?.steps"
+              :key="step._id"
+              class="bg-white rounded-lg border border-gray-200 p-4 flex items-center gap-4"
+            >
+              <span class="text-sm font-medium text-gray-400 w-6">{{ step.globalIndex }}</span>
+              <div
+                v-if="step.paint"
+                class="w-8 h-8 rounded-full border border-gray-200 flex-shrink-0"
+                :style="{ backgroundColor: step.paint.hexColor }"
+              />
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-900">
+                  {{ step.paint ? `${step.paint.brand} — ${step.paint.name}` : 'No paint selected' }}
+                </p>
+                <p class="text-xs text-gray-500">{{ formatTechnique(step.technique) }}</p>
+                <p v-if="step.notes" class="text-xs text-gray-400 mt-0.5">{{ step.notes }}</p>
+              </div>
+            </div>
+          </div>
+        </template>
       </div>
     </main>
   </div>
