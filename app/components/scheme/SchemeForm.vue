@@ -1,17 +1,20 @@
 <script setup lang="ts">
 import type { Step } from './SchemeStepEditor.vue'
+import type { AreaDraft, AreaEditorModel } from './SchemeAreaEditor.vue'
+import type { AreaPayload, StepPayload } from '~/composables/useSchemes'
 
 const props = defineProps<{
   initial?: {
     name?: string
     description?: string | null
     steps?: Step[]
+    areas?: Array<{ name: string; steps: Step[] }>
   }
   submitLabel?: string
 }>()
 
 const emit = defineEmits<{
-  submit: [data: { name: string, description: string | null, steps: Step[] }]
+  submit: [data: { name: string; description: string | null; areas: AreaPayload[]; steps: StepPayload[] }]
 }>()
 
 const form = reactive({
@@ -19,9 +22,27 @@ const form = reactive({
   description: props.initial?.description ?? '',
 })
 
-const steps = ref<Step[]>(
+// Build initial areas from `initial.areas` if provided; otherwise empty
+const areas = ref<AreaDraft[]>(
+  (props.initial?.areas ?? []).map(a => ({
+    _uid: crypto.randomUUID(),
+    name: a.name,
+    steps: a.steps.map(s => ({ ...s, _uid: s._uid ?? crypto.randomUUID() })),
+  })),
+)
+
+// Backward compat: if only flat `steps` provided (no areas), put them in ungrouped
+const ungroupedSteps = ref<Step[]>(
   (props.initial?.steps ?? []).map(s => ({ ...s, _uid: s._uid ?? crypto.randomUUID() })),
 )
+
+const areaModel = computed<AreaEditorModel>({
+  get: () => ({ areas: areas.value, ungroupedSteps: ungroupedSteps.value }),
+  set: (val) => {
+    areas.value = val.areas
+    ungroupedSteps.value = val.ungroupedSteps
+  },
+})
 
 const { paints } = usePaints()
 
@@ -35,10 +56,35 @@ const paintOptions = computed(() =>
 )
 
 function handleSubmit() {
+  const areaPayloads: AreaPayload[] = areas.value.map((a, i) => ({
+    name: a.name,
+    sortOrder: i,
+  }))
+
+  const stepPayloads: StepPayload[] = [
+    // Ungrouped steps get areaIndex: null
+    ...ungroupedSteps.value.map(({ _uid: _ignored, ...s }) => ({
+      paintId: s.paintId as StepPayload['paintId'],
+      technique: s.technique,
+      notes: s.notes,
+      areaIndex: null,
+    })),
+    // Steps in each area get their area's index
+    ...areas.value.flatMap((a, areaIndex) =>
+      a.steps.map(({ _uid: _ignored, ...s }) => ({
+        paintId: s.paintId as StepPayload['paintId'],
+        technique: s.technique,
+        notes: s.notes,
+        areaIndex,
+      })),
+    ),
+  ]
+
   emit('submit', {
     name: form.name,
     description: form.description || null,
-    steps: steps.value,
+    areas: areaPayloads,
+    steps: stepPayloads,
   })
 }
 </script>
@@ -68,7 +114,7 @@ function handleSubmit() {
 
     <div>
       <h3 class="text-sm font-medium text-gray-700 mb-3">Steps</h3>
-      <SchemeStepEditor v-model="steps" :paints="paintOptions" />
+      <SchemeAreaEditor v-model="areaModel" :paints="paintOptions" />
     </div>
 
     <div class="flex justify-end">
