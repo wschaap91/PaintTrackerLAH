@@ -1,6 +1,6 @@
 # PaintTrackerLAH — Spec
 
-Last updated: 2026-05-31 (after PR #111 — v8 Wave 5-6: SchemeForm area wiring, area-grouped view, refine fixes)
+Last updated: 2026-05-31 (after PR #123 — v8 Wave 2: PaintCardCompact, PaintTabPills, PaintSearchBar, ThreeDotMenu UI components)
 
 ## Architecture
 
@@ -142,7 +142,7 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 - **`SchemeAreaEditor` pattern**: `SchemeAreaEditor.vue` organises painting steps into named areas with nested vuedraggable; uses shared `group="steps"` so steps can be dragged across areas. Exports `AreaDraft` (draft area with steps array) and `AreaEditorModel` (full editor state) types. `SchemeStepEditor` exports `PaintOption` and `Step` types (previously internal) and adds `_uid?: string` to `Step` for stable drag keys via `stepKey()`; `SchemeForm` imports `Step` from `SchemeStepEditor` (no longer defines a local copy) and backfills `_uid` on init. On submit, SchemeForm serializes areas as `AreaPayload[]` (name + sortOrder) and steps as `StepPayload[]` (with `areaIndex` linking each step to its parent area by position).
 - **`stepGroups` computed pattern**: both `schemes/[id].vue` and `s/[slug].vue` normalise scheme data into `StepGroup[]` — groups steps by area with `globalIndex` numbering. Handles both area-less (legacy) and area-grouped schemes in one code path. Uses `areaId != null` (loose equality) to handle Convex's `v.optional()` returning `undefined`.
 - **`SchemeStepCard` component**: shared presentational `<li>` for rendering a single step (index, color swatch via `ColorSwatch`, paint name/brand, technique, notes). Used by both scheme detail pages.
-- **Shared utils** (`app/utils/`): `formatTechnique` — converts snake_case technique IDs to Title Case; Nuxt auto-imports from this directory.
+- **Shared utils** (`app/utils/`): `formatTechnique` — converts snake_case technique IDs to Title Case; `getBrandColor(brand)` — looks up a brand's hex color from the static `brandColors` map (falls back to default gray); Nuxt auto-imports from this directory.
 - **Error handling**: try/catch/finally with local `error` ref + `isLoading` ref in page components
 - **Styling**: Tailwind only — no inline styles, no per-component CSS; custom accent palette
 
@@ -152,17 +152,18 @@ Auth tables provided by `@convex-dev/auth` (ADR-003).
 app/
   components/
     paint/        CatalogFilters, CatalogPaintCard, PaintBarcodeScanner.client,
-                  PaintCard, PaintCatalogSearch, PaintFilters, PaintForm,
-                  PaintImportExport, PaintQuickAdd, ShoppingShareToggle
+                  PaintCard, PaintCardCompact, PaintCatalogSearch, PaintFilters, PaintForm,
+                  PaintImportExport, PaintQuickAdd, PaintSearchBar, PaintTabPills,
+                  ShoppingShareToggle
     project/      ProjectCard, ProjectForm
     scheme/       SchemeAreaEditor, SchemeCard, SchemeForm, SchemeStepCard, SchemeStepEditor
-    ui/           AppHeader, BottomTabBar, ColorSwatch, EmptyState, StatusBadge
+    ui/           AppHeader, BottomTabBar, ColorSwatch, EmptyState, StatusBadge, ThreeDotMenu
   composables/    useAuth.ts, useCatalogBrowse.ts, useCatalogSearch.ts, useConvex.ts,
                   useImportExport.ts, usePaints.ts, useProjects.ts, useSchemes.ts,
                   useShoppingList.ts
   layouts/        default.vue
   middleware/     auth.global.ts
-  utils/          format.ts
+  utils/          brandColors.ts, format.ts
   pages/
     auth/         login.vue, register.vue
     s/            [slug].vue  (public), shopping/[slug].vue  (public)
