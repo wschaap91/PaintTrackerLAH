@@ -84,17 +84,9 @@ const stepGroups = computed<StepGroup[]>(() => {
   }
 
   let counter = 1
-  for (const area of areas) {
-    for (const step of steps) {
-      if (step.areaId === area._id) {
-        grouped.get(area._id)!.push({ ...step, globalIndex: counter++ })
-      }
-    }
-  }
   for (const step of steps) {
-    if (!step.areaId || !areas.find(a => a._id === step.areaId)) {
-      grouped.get(null)!.push({ ...step, globalIndex: counter++ })
-    }
+    const bucket = step.areaId && grouped.has(step.areaId) ? step.areaId : null
+    grouped.get(bucket)!.push({ ...step, globalIndex: counter++ })
   }
 
   const result: StepGroup[] = areas.map(area => ({
@@ -108,7 +100,7 @@ const stepGroups = computed<StepGroup[]>(() => {
     result.push({ areaId: null, areaName: 'General', steps: generalSteps })
   }
 
-  return result
+  return result.filter(g => g.steps.length > 0)
 })
 
 const hasAreas = computed(() => (scheme.value?.areas ?? []).length > 0)
