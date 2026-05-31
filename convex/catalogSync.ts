@@ -172,6 +172,7 @@ export const browseCatalog = query({
 export const addFromCatalog = mutation({
   args: {
     catalogPaintId: v.id('catalogPaints'),
+    status: v.optional(v.union(v.literal('owned'), v.literal('wishlist'))),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx)
@@ -200,7 +201,7 @@ export const addFromCatalog = mutation({
       name: catalogPaint.name,
       paintType: catalogPaint.paintType,
       hexColor: catalogPaint.hexColor ?? '#888888',
-      status: 'owned',
+      status: args.status ?? 'owned',
       notes: null,
       transparency: catalogPaint.transparency ?? null,
       finish: catalogPaint.finish ?? null,
