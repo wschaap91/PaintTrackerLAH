@@ -20,8 +20,8 @@ watch(() => filters.value.brand, () => {
 </script>
 
 <template>
-  <div class="flex flex-wrap items-end gap-3 mb-6">
-    <div class="flex flex-col gap-1 w-full sm:w-64">
+  <div class="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-wrap lg:items-end gap-3 mb-6">
+    <div class="flex flex-col gap-1 col-span-2 sm:col-span-3 lg:w-64">
       <label for="catalog-search" class="text-xs font-medium text-gray-600">Search</label>
       <input
         id="catalog-search"
@@ -68,14 +68,14 @@ watch(() => filters.value.brand, () => {
       </select>
     </div>
 
-    <div class="flex items-center gap-2 pb-2">
+    <label for="catalog-hide-owned" class="flex items-center gap-2 py-2 cursor-pointer select-none">
       <input
         id="catalog-hide-owned"
         v-model="filters.hideOwned"
         type="checkbox"
-        class="h-4 w-4 rounded border-gray-300 text-accent-600 focus:ring-accent-500"
+        class="h-5 w-5 rounded border-gray-300 text-accent-600 focus:ring-2 focus:ring-accent-500"
       >
-      <label for="catalog-hide-owned" class="text-sm text-gray-700 cursor-pointer select-none">Hide owned</label>
-    </div>
+      <span class="text-sm text-gray-700">Hide owned</span>
+    </label>
   </div>
 </template>

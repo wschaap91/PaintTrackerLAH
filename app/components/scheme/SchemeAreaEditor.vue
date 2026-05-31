@@ -60,10 +60,10 @@ function deleteArea(index: number) {
           <div class="flex items-center gap-2 mb-3">
             <button
               type="button"
-              class="area-drag-handle text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing flex-shrink-0"
+              class="area-drag-handle p-1.5 -m-1.5 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing flex-shrink-0"
               aria-label="Drag area to reorder"
             >
-              <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M7 4a1 1 0 100 2 1 1 0 000-2zM7 9a1 1 0 100 2 1 1 0 000-2zM7 14a1 1 0 100 2 1 1 0 000-2zM13 4a1 1 0 100 2 1 1 0 000-2zM13 9a1 1 0 100 2 1 1 0 000-2zM13 14a1 1 0 100 2 1 1 0 000-2z" />
               </svg>
             </button>
@@ -77,7 +77,7 @@ function deleteArea(index: number) {
 
             <button
               type="button"
-              class="text-gray-400 hover:text-red-600 transition-colors flex-shrink-0"
+              class="p-1.5 -m-1.5 text-gray-400 hover:text-red-600 transition-colors flex-shrink-0"
               :aria-label="`Delete ${element.name} area`"
               @click="deleteArea(index)"
             >

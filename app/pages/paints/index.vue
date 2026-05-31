@@ -23,7 +23,7 @@ const showImportExport = ref(false)
           {{ paints?.length ?? 0 }} paints in your collection.
         </p>
       </div>
-      <div class="flex gap-2">
+      <div class="hidden sm:flex gap-2">
         <NuxtLink
           to="/paints/catalog"
           class="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
@@ -48,6 +48,21 @@ const showImportExport = ref(false)
         >
           + Add Paint
         </NuxtLink>
+      </div>
+      <!-- Mobile: compact action row -->
+      <div class="flex sm:hidden gap-2">
+        <NuxtLink
+          to="/paints/add"
+          class="rounded-lg bg-accent-600 px-3 py-2 text-sm font-medium text-white shadow-sm hover:bg-accent-700 transition-colors"
+        >
+          + Add
+        </NuxtLink>
+        <button
+          class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          @click="showImportExport = !showImportExport"
+        >
+          Import / Export
+        </button>
       </div>
     </div>
 

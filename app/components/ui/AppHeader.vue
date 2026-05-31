@@ -34,6 +34,20 @@ function closeHamburger() {
   hamburgerOpen.value = false
 }
 
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && hamburgerOpen.value) {
+    closeHamburger()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', onKeydown)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', onKeydown)
+})
+
 async function handleMobileSignOut() {
   closeHamburger()
   await handleSignOut()
@@ -115,7 +129,7 @@ async function handleMobileSignOut() {
       <!-- Dropdown panel -->
       <div class="relative z-20 bg-white border-t border-gray-200 px-4 py-3 shadow-lg">
         <div class="mb-3 pb-3 border-b border-gray-100">
-          <span class="text-sm text-gray-500">{{ currentUserEmail }}</span>
+          <span class="text-sm text-gray-500 truncate block">{{ currentUserEmail }}</span>
         </div>
         <nav class="flex flex-col gap-1 mb-3">
           <NuxtLink

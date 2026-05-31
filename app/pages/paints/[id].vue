@@ -52,7 +52,7 @@ async function handleDelete() {
 
     <template v-else>
       <div v-if="!isEditing">
-        <div class="flex items-start justify-between mb-6">
+        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
           <div class="flex items-center gap-4">
             <ColorSwatch :color="paint.hexColor" size="lg" />
             <div>
@@ -60,7 +60,7 @@ async function handleDelete() {
               <p class="text-sm text-gray-500">{{ paint.brand }}</p>
             </div>
           </div>
-          <div class="flex gap-2">
+          <div class="flex gap-2 flex-shrink-0">
             <button
               class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               @click="isEditing = true"
@@ -192,11 +192,11 @@ async function handleDelete() {
         <div class="bg-white rounded-xl shadow-lg p-6 max-w-sm mx-4">
           <h3 class="text-lg font-medium text-gray-900">Delete paint?</h3>
           <p class="mt-2 text-sm text-gray-500">This will permanently remove <strong>{{ paint.name }}</strong> from your collection.</p>
-          <div class="mt-4 flex justify-end gap-3">
-            <button class="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50" @click="showDeleteConfirm = false">
+          <div class="mt-4 flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+            <button class="rounded-lg border border-gray-200 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50" @click="showDeleteConfirm = false">
               Cancel
             </button>
-            <button class="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700" @click="handleDelete">
+            <button class="rounded-lg bg-red-600 px-3 py-2.5 text-sm font-medium text-white hover:bg-red-700" @click="handleDelete">
               Delete
             </button>
           </div>
