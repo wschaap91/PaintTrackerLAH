@@ -44,6 +44,7 @@ const { signOut } = useAuth()
 // ---------------------------------------------------------------------------
 const showQuickAdd = ref(false)
 const showImportExport = ref(false)
+const mutationError = ref<string | null>(null)
 
 // ---------------------------------------------------------------------------
 // Sync search query to catalog filters when on All tab
@@ -59,9 +60,14 @@ watch(
 
 // When switching TO the All tab, sync q into catalog filters (brand is already
 // tracked independently via catalog.filters.brand)
-watch(activeTab, (tab) => {
+watch(activeTab, (tab, prevTab) => {
   if (tab === 'all') {
     catalog.filters.q = searchFilters.value.q
+  }
+  // Reset brand filter when crossing between owned↔wishlist tabs
+  const userPaintTabs = ['owned', 'wishlist']
+  if (userPaintTabs.includes(tab) && userPaintTabs.includes(prevTab) && tab !== prevTab) {
+    tabBrand.value = ''
   }
 })
 
@@ -131,10 +137,18 @@ const wishlistPaints = computed(() => {
 })
 
 // ---------------------------------------------------------------------------
-// Counts for tab pills
+// Counts for tab pills — unfiltered totals so users see true collection size
 // ---------------------------------------------------------------------------
-const ownedCount = computed(() => ownedPaints.value.length)
-const wishlistCount = computed(() => wishlistPaints.value.length)
+const ownedCount = computed(() => {
+  const paints = allPaints.value ?? []
+  return paints.filter(
+    (p) => p.status === 'owned' || p.status === 'running_low' || p.status === 'empty',
+  ).length
+})
+const wishlistCount = computed(() => {
+  const paints = allPaints.value ?? []
+  return paints.filter((p) => p.status === 'wishlist').length
+})
 
 // ---------------------------------------------------------------------------
 // Brand list per tab
@@ -174,30 +188,40 @@ function isCatalogPaintWishlisted(catalogPaintId: string): boolean {
 // Action handlers — All tab (catalog paints)
 // ---------------------------------------------------------------------------
 async function handleCatalogToggleOwned(catalogPaintId: string) {
-  const entry = catalogPaintStatusMap.value.get(catalogPaintId)
-  if (entry && (entry.status === 'owned' || entry.status === 'running_low' || entry.status === 'empty')) {
-    // Already owned — remove it
-    await removePaint({ id: entry.paintId as Id<'paints'> })
-  } else if (entry && entry.status === 'wishlist') {
-    // Currently wishlisted — change to owned
-    await updatePaint({ id: entry.paintId as Id<'paints'>, status: 'owned' })
-  } else {
-    // Not in collection — add as owned
-    await addFromCatalog({ catalogPaintId: catalogPaintId as Id<'catalogPaints'>, status: 'owned' })
+  mutationError.value = null
+  try {
+    const entry = catalogPaintStatusMap.value.get(catalogPaintId)
+    if (entry && (entry.status === 'owned' || entry.status === 'running_low' || entry.status === 'empty')) {
+      // Already owned — remove it
+      await removePaint({ id: entry.paintId as Id<'paints'> })
+    } else if (entry && entry.status === 'wishlist') {
+      // Currently wishlisted — change to owned
+      await updatePaint({ id: entry.paintId as Id<'paints'>, status: 'owned' })
+    } else {
+      // Not in collection — add as owned
+      await addFromCatalog({ catalogPaintId: catalogPaintId as Id<'catalogPaints'>, status: 'owned' })
+    }
+  } catch (err) {
+    mutationError.value = err instanceof Error ? err.message : 'Failed to update paint. Please try again.'
   }
 }
 
 async function handleCatalogToggleWishlist(catalogPaintId: string) {
-  const entry = catalogPaintStatusMap.value.get(catalogPaintId)
-  if (entry && entry.status === 'wishlist') {
-    // Already wishlisted — remove it
-    await removePaint({ id: entry.paintId as Id<'paints'> })
-  } else if (entry && (entry.status === 'owned' || entry.status === 'running_low' || entry.status === 'empty')) {
-    // Currently owned — change to wishlist
-    await updatePaint({ id: entry.paintId as Id<'paints'>, status: 'wishlist' })
-  } else {
-    // Not in collection — add as wishlist
-    await addFromCatalog({ catalogPaintId: catalogPaintId as Id<'catalogPaints'>, status: 'wishlist' })
+  mutationError.value = null
+  try {
+    const entry = catalogPaintStatusMap.value.get(catalogPaintId)
+    if (entry && entry.status === 'wishlist') {
+      // Already wishlisted — remove it
+      await removePaint({ id: entry.paintId as Id<'paints'> })
+    } else if (entry && (entry.status === 'owned' || entry.status === 'running_low' || entry.status === 'empty')) {
+      // Currently owned — change to wishlist
+      await updatePaint({ id: entry.paintId as Id<'paints'>, status: 'wishlist' })
+    } else {
+      // Not in collection — add as wishlist
+      await addFromCatalog({ catalogPaintId: catalogPaintId as Id<'catalogPaints'>, status: 'wishlist' })
+    }
+  } catch (err) {
+    mutationError.value = err instanceof Error ? err.message : 'Failed to update paint. Please try again.'
   }
 }
 
@@ -205,22 +229,32 @@ async function handleCatalogToggleWishlist(catalogPaintId: string) {
 // Action handlers — Owned / Wishlist tabs (user paints)
 // ---------------------------------------------------------------------------
 async function handleUserToggleOwned(paintId: string) {
-  const paint = (allPaints.value ?? []).find((p) => p._id === paintId)
-  if (!paint) return
-  if (paint.status === 'owned' || paint.status === 'running_low' || paint.status === 'empty') {
-    await removePaint({ id: paintId as Id<'paints'> })
-  } else {
-    await updatePaint({ id: paintId as Id<'paints'>, status: 'owned' })
+  mutationError.value = null
+  try {
+    const paint = (allPaints.value ?? []).find((p) => p._id === paintId)
+    if (!paint) return
+    if (paint.status === 'owned' || paint.status === 'running_low' || paint.status === 'empty') {
+      await removePaint({ id: paintId as Id<'paints'> })
+    } else {
+      await updatePaint({ id: paintId as Id<'paints'>, status: 'owned' })
+    }
+  } catch (err) {
+    mutationError.value = err instanceof Error ? err.message : 'Failed to update paint. Please try again.'
   }
 }
 
 async function handleUserToggleWishlist(paintId: string) {
-  const paint = (allPaints.value ?? []).find((p) => p._id === paintId)
-  if (!paint) return
-  if (paint.status === 'wishlist') {
-    await removePaint({ id: paintId as Id<'paints'> })
-  } else {
-    await updatePaint({ id: paintId as Id<'paints'>, status: 'wishlist' })
+  mutationError.value = null
+  try {
+    const paint = (allPaints.value ?? []).find((p) => p._id === paintId)
+    if (!paint) return
+    if (paint.status === 'wishlist') {
+      await removePaint({ id: paintId as Id<'paints'> })
+    } else {
+      await updatePaint({ id: paintId as Id<'paints'>, status: 'wishlist' })
+    }
+  } catch (err) {
+    mutationError.value = err instanceof Error ? err.message : 'Failed to update paint. Please try again.'
   }
 }
 
@@ -278,8 +312,11 @@ function handleImportExport() {
 }
 
 async function handleLogout() {
-  await signOut()
-  await navigateTo('/auth/login')
+  try {
+    await signOut()
+  } finally {
+    await navigateTo('/auth/login')
+  }
 }
 </script>
 
@@ -323,6 +360,22 @@ async function handleLogout() {
         placeholder="Search paints..."
         @update:model-value="handleSearchUpdate($event)"
       />
+    </div>
+
+    <!-- Mutation error banner -->
+    <div
+      v-if="mutationError"
+      class="mb-3 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+      role="alert"
+    >
+      <span class="flex-1">{{ mutationError }}</span>
+      <button
+        class="shrink-0 font-medium hover:text-red-900"
+        aria-label="Dismiss error"
+        @click="mutationError = null"
+      >
+        Dismiss
+      </button>
     </div>
 
     <!-- Tab pills -->
