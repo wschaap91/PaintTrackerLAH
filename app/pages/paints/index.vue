@@ -9,13 +9,16 @@ import type { PaintSearchFilters } from '~/components/paint/PaintSearchBar.vue'
 const activeTab = ref<'all' | 'owned' | 'wishlist'>('owned')
 
 // ---------------------------------------------------------------------------
-// Shared search state
+// Shared search state (q and paintType persist across tabs)
 // ---------------------------------------------------------------------------
 const searchFilters = ref<PaintSearchFilters>({
   q: '',
   brand: '',
   paintType: '',
 })
+
+// Per-tab brand state for Owned / Wishlist tabs
+const tabBrand = ref('')
 
 // ---------------------------------------------------------------------------
 // Data sources
@@ -54,22 +57,44 @@ watch(
   },
 )
 
-watch(
-  () => searchFilters.value.brand,
-  (brand) => {
-    if (activeTab.value === 'all') {
-      catalog.filters.brand = brand
-    }
-  },
-)
-
-// When switching TO the All tab, sync current search state into catalog filters
+// When switching TO the All tab, sync q into catalog filters (brand is already
+// tracked independently via catalog.filters.brand)
 watch(activeTab, (tab) => {
   if (tab === 'all') {
     catalog.filters.q = searchFilters.value.q
-    catalog.filters.brand = searchFilters.value.brand
   }
 })
+
+// ---------------------------------------------------------------------------
+// Derived brand value for PaintSearchBar — per active tab
+// ---------------------------------------------------------------------------
+const currentBrand = computed(() =>
+  activeTab.value === 'all' ? catalog.filters.brand : tabBrand.value,
+)
+
+function handleBrandChange(brand: string) {
+  if (activeTab.value === 'all') {
+    catalog.filters.brand = brand
+  } else {
+    tabBrand.value = brand
+  }
+}
+
+// Combined model value for PaintSearchBar (q and paintType are shared;
+// brand is derived per-tab via currentBrand)
+const searchBarValue = computed<PaintSearchFilters>(() => ({
+  q: searchFilters.value.q,
+  paintType: searchFilters.value.paintType,
+  brand: currentBrand.value,
+}))
+
+function handleSearchUpdate(filters: PaintSearchFilters) {
+  searchFilters.value.q = filters.q
+  searchFilters.value.paintType = filters.paintType
+  if (filters.brand !== currentBrand.value) {
+    handleBrandChange(filters.brand)
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Client-side filtering for Owned / Wishlist tabs
@@ -91,7 +116,7 @@ const ownedPaints = computed(() => {
     (p) =>
       (p.status === 'owned' || p.status === 'running_low' || p.status === 'empty') &&
       matchesSearch(p, searchFilters.value.q) &&
-      matchesBrand(p, searchFilters.value.brand),
+      matchesBrand(p, tabBrand.value),
   )
 })
 
@@ -101,7 +126,7 @@ const wishlistPaints = computed(() => {
     (p) =>
       p.status === 'wishlist' &&
       matchesSearch(p, searchFilters.value.q) &&
-      matchesBrand(p, searchFilters.value.brand),
+      matchesBrand(p, tabBrand.value),
   )
 })
 
@@ -293,10 +318,10 @@ async function handleLogout() {
     <!-- Search bar -->
     <div class="mb-3">
       <PaintSearchBar
-        :model-value="searchFilters"
+        :model-value="searchBarValue"
         :brands="brandsForCurrentTab"
         placeholder="Search paints..."
-        @update:model-value="searchFilters = $event"
+        @update:model-value="handleSearchUpdate($event)"
       />
     </div>
 
@@ -318,7 +343,7 @@ async function handleLogout() {
       <div v-else-if="!catalog.results.value.length">
         <EmptyState
           title="No paints found"
-          :description="searchFilters.q || searchFilters.brand ? 'Try changing your search or filters.' : 'No catalog paints available.'"
+          :description="searchFilters.q || catalog.filters.brand ? 'Try changing your search or filters.' : 'No catalog paints available.'"
         />
       </div>
 
@@ -363,7 +388,7 @@ async function handleLogout() {
       <div v-else-if="!ownedPaints.length">
         <EmptyState
           title="No owned paints"
-          :description="searchFilters.q || searchFilters.brand ? 'Try changing your search or filters.' : 'Add paints from the catalog to get started.'"
+          :description="searchFilters.q || tabBrand ? 'Try changing your search or filters.' : 'Add paints from the catalog to get started.'"
         />
       </div>
 
@@ -395,7 +420,7 @@ async function handleLogout() {
       <div v-else-if="!wishlistPaints.length">
         <EmptyState
           title="No wishlisted paints"
-          :description="searchFilters.q || searchFilters.brand ? 'Try changing your search or filters.' : 'Browse the catalog and heart paints you want.'"
+          :description="searchFilters.q || tabBrand ? 'Try changing your search or filters.' : 'Browse the catalog and heart paints you want.'"
         />
       </div>
 
