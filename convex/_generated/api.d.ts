@@ -13,6 +13,7 @@ import type * as catalogSync from "../catalogSync.js";
 import type * as colorFamily from "../colorFamily.js";
 import type * as crons from "../crons.js";
 import type * as http from "../http.js";
+import type * as lib from "../lib.js";
 import type * as migrations from "../migrations.js";
 import type * as paints from "../paints.js";
 import type * as projects from "../projects.js";
@@ -30,6 +31,7 @@ declare const fullApi: ApiFromModules<{
   colorFamily: typeof colorFamily;
   crons: typeof crons;
   http: typeof http;
+  lib: typeof lib;
   migrations: typeof migrations;
   paints: typeof paints;
   projects: typeof projects;

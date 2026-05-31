@@ -1,13 +1,14 @@
 <script setup lang="ts">
+import type { AreaPayload, StepPayload } from '~/composables/useSchemes'
+
 const router = useRouter()
 const error = ref('')
 const { create } = useSchemeMutations()
 
-async function handleSubmit(data: { name: string, description: string | null, steps: { paintId: string | null, technique: string, notes: string | null }[] }) {
+async function handleSubmit(data: { name: string; description: string | null; areas: AreaPayload[]; steps: StepPayload[] }) {
   try {
     error.value = ''
-    // SchemeForm emits paintId as string; at runtime these are Convex Ids — cast to satisfy the mutation's branded-type signature
-    const id = await create({ ...data, steps: data.steps as StepPayload[] })
+    const id = await create({ name: data.name, description: data.description, areas: data.areas, steps: data.steps })
     router.push(`/schemes/${id}`)
   }
   catch {

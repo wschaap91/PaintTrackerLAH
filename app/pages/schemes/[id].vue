@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Id } from '../../../convex/_generated/dataModel'
+import type { AreaPayload, StepPayload } from '~/composables/useSchemes'
 
 const route = useRoute()
 const router = useRouter()
@@ -52,22 +53,31 @@ function formatTechnique(t: string): string {
 
 const editInitial = computed(() => {
   if (!scheme.value) return undefined
+
+  const sortedAreas = [...scheme.value.areas].sort((a, b) => a.sortOrder - b.sortOrder)
+  const ungroupedSteps = scheme.value.steps
+    .filter(s => s.areaId === null)
+    .map(s => ({ paintId: s.paintId, technique: s.technique, notes: s.notes }))
+
+  const areas = sortedAreas.map(area => ({
+    name: area.name,
+    steps: scheme.value!.steps
+      .filter(s => s.areaId === area._id)
+      .map(s => ({ paintId: s.paintId, technique: s.technique, notes: s.notes })),
+  }))
+
   return {
     name: scheme.value.name,
     description: scheme.value.description,
-    steps: scheme.value.steps.map(s => ({
-      paintId: s.paintId,
-      technique: s.technique,
-      notes: s.notes,
-    })),
+    steps: ungroupedSteps,
+    areas,
   }
 })
 
-async function handleUpdate(data: { name: string, description: string | null, steps: { paintId: string | null, technique: string, notes: string | null }[] }) {
+async function handleUpdate(data: { name: string; description: string | null; areas: AreaPayload[]; steps: StepPayload[] }) {
   try {
     error.value = ''
-    // SchemeForm emits paintId as string; at runtime these are Convex Ids — cast to satisfy the mutation's branded-type signature
-    await update({ id, ...data, steps: data.steps as StepPayload[] })
+    await update({ id, name: data.name, description: data.description, areas: data.areas, steps: data.steps })
     isEditing.value = false
   }
   catch {
@@ -121,22 +131,82 @@ async function handleDelete() {
           No steps in this scheme yet. Click Edit to add some.
         </div>
 
-        <ol v-else class="space-y-3">
-          <li v-for="(step, i) in scheme.steps" :key="step._id" class="card flex items-start gap-4">
-            <div class="text-xs font-mono text-gray-400 mt-1 w-6">{{ i + 1 }}.</div>
-            <ColorSwatch :color="step.paint?.hexColor || '#e5e7eb'" />
-            <div class="flex-1">
-              <div class="flex items-center gap-2 flex-wrap">
-                <p class="text-sm font-medium text-gray-900">
-                  {{ step.paint?.name || 'Paint removed' }}
-                </p>
-                <span v-if="step.paint" class="text-xs text-gray-400">{{ step.paint.brand }}</span>
+        <!-- Flat list when no areas defined (backward compat) -->
+        <template v-else-if="!scheme.areas.length">
+          <ol class="space-y-3">
+            <li v-for="(step, i) in scheme.steps" :key="step._id" class="card flex items-start gap-4">
+              <div class="text-xs font-mono text-gray-400 mt-1 w-6">{{ i + 1 }}.</div>
+              <ColorSwatch :color="step.paint?.hexColor || '#e5e7eb'" />
+              <div class="flex-1">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <p class="text-sm font-medium text-gray-900">
+                    {{ step.paint?.name || 'Paint removed' }}
+                  </p>
+                  <span v-if="step.paint" class="text-xs text-gray-400">{{ step.paint.brand }}</span>
+                </div>
+                <p class="text-xs text-accent-600 mt-0.5">{{ formatTechnique(step.technique) }}</p>
+                <p v-if="step.notes" class="text-xs text-gray-500 mt-1">{{ step.notes }}</p>
               </div>
-              <p class="text-xs text-accent-600 mt-0.5">{{ formatTechnique(step.technique) }}</p>
-              <p v-if="step.notes" class="text-xs text-gray-500 mt-1">{{ step.notes }}</p>
-            </div>
-          </li>
-        </ol>
+            </li>
+          </ol>
+        </template>
+
+        <!-- Area-grouped view -->
+        <template v-else>
+          <!-- Named areas sorted by sortOrder -->
+          <div
+            v-for="area in [...scheme.areas].sort((a, b) => a.sortOrder - b.sortOrder)"
+            :key="area._id"
+            class="mb-6"
+          >
+            <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">{{ area.name }}</h2>
+            <ol class="space-y-3">
+              <li
+                v-for="(step, i) in scheme.steps.filter(s => s.areaId === area._id)"
+                :key="step._id"
+                class="card flex items-start gap-4"
+              >
+                <div class="text-xs font-mono text-gray-400 mt-1 w-6">{{ i + 1 }}.</div>
+                <ColorSwatch :color="step.paint?.hexColor || '#e5e7eb'" />
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <p class="text-sm font-medium text-gray-900">
+                      {{ step.paint?.name || 'Paint removed' }}
+                    </p>
+                    <span v-if="step.paint" class="text-xs text-gray-400">{{ step.paint.brand }}</span>
+                  </div>
+                  <p class="text-xs text-accent-600 mt-0.5">{{ formatTechnique(step.technique) }}</p>
+                  <p v-if="step.notes" class="text-xs text-gray-500 mt-1">{{ step.notes }}</p>
+                </div>
+              </li>
+            </ol>
+          </div>
+
+          <!-- Ungrouped steps shown in "General" section when mixed with areas -->
+          <div v-if="scheme.steps.some(s => s.areaId === null)" class="mb-6">
+            <h2 class="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">General</h2>
+            <ol class="space-y-3">
+              <li
+                v-for="(step, i) in scheme.steps.filter(s => s.areaId === null)"
+                :key="step._id"
+                class="card flex items-start gap-4"
+              >
+                <div class="text-xs font-mono text-gray-400 mt-1 w-6">{{ i + 1 }}.</div>
+                <ColorSwatch :color="step.paint?.hexColor || '#e5e7eb'" />
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 flex-wrap">
+                    <p class="text-sm font-medium text-gray-900">
+                      {{ step.paint?.name || 'Paint removed' }}
+                    </p>
+                    <span v-if="step.paint" class="text-xs text-gray-400">{{ step.paint.brand }}</span>
+                  </div>
+                  <p class="text-xs text-accent-600 mt-0.5">{{ formatTechnique(step.technique) }}</p>
+                  <p v-if="step.notes" class="text-xs text-gray-500 mt-1">{{ step.notes }}</p>
+                </div>
+              </li>
+            </ol>
+          </div>
+        </template>
         <div v-if="error" class="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
           {{ error }}
         </div>
