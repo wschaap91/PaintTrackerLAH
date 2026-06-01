@@ -1,6 +1,6 @@
 ---
 version: 7
-status: built
+status: archived
 date: 2026-05-29
 author: Wouter Schaap
 previous: prd-v6.md

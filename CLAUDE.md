@@ -84,6 +84,7 @@ See `.adr/` for full reasoning. Key decisions:
 | Deployment | Vercel (Nuxt adapter) + Convex cloud | ADR-006 |
 | Public scheme sharing | Slug-based URLs (`/s/[slug]`) via nanoid | ADR-007 |
 | Convex data access | Custom composables (`useConvexQuery`, `useConvexMutation`) | ADR-008 |
+| Accent colour palette | Warm amber (indian yellow) replacing indigo | ADR-009 |
 
 ---
 
