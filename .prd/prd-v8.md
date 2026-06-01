@@ -1,6 +1,6 @@
 ---
 version: 8
-status: draft
+status: built
 date: 2026-06-01
 author: Wouter Schaap
 previous: prd-v7.md
