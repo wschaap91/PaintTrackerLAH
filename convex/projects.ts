@@ -121,7 +121,7 @@ export const get = query({
     )
 
     const missingPaints = missingPaintDocs
-      .filter((p): p is NonNullable<typeof p> => p !== null && (!p.userId || p.userId === userId))
+      .filter((p): p is NonNullable<typeof p> => p !== null && p.userId === userId)
       .map(p => ({
         _id: p._id,
         name: p.name,
