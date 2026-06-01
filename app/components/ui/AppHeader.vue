@@ -54,7 +54,7 @@ async function handleMobileSignOut() {
 </script>
 
 <template>
-  <header class="bg-white border-b border-gray-200">
+  <header class="hidden sm:block bg-white border-b border-gray-200">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div class="flex items-center justify-between h-16">
         <div class="flex items-center gap-8">
