@@ -48,3 +48,11 @@ Review findings that scored 50-79 — real but below the noise threshold. These 
 |-------|------|---------|------------|
 | 75 | app/components/scheme/SchemeStepEditor.vue:38-40 | `stepKey` fallback `(paintId ?? '') + technique` produces duplicate keys for legacy steps without `_uid` that share the same paint and technique — vuedraggable misplaces or drops items silently | Use index-based fallback: `step._uid ?? \`legacy-${index}\`` or backfill `_uid` on load |
 | 70 | app/components/scheme/SchemeAreaEditor.vue:29-35 | `deleteArea(index)` uses array index which can point to the wrong area if drag reorder fires between click and handler execution — wrong area deleted silently, steps moved to ungrouped | Use `_uid` lookup: `deleteArea(uid: string)` with `findIndex` for identity-safe deletion |
+
+## PR #135 — feat: v8 Wave 2 — PaintCardCompact icons, paints page integration (2026-06-02)
+
+### Pattern: code-simplifier (1 finding)
+
+| Score | File | Finding | Suggestion |
+|-------|------|---------|------------|
+| 50 | app/pages/paints/index.vue:73-74 | `searchBarValue` computed is a pass-through wrapper (`() => searchFilters.value`) with no transformation — unnecessary indirection after filter unification removed the merge logic | Remove the computed and bind `searchFilters` directly in the template |
