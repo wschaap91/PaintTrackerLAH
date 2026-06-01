@@ -65,6 +65,7 @@ watch(activeTab, (tab) => {
   if (tab === 'all') {
     catalog.filters.q = searchFilters.value.q
     catalog.filters.brand = searchFilters.value.brand
+    catalog.filters.colorFamily = searchFilters.value.paintType
   }
 })
 
@@ -75,9 +76,9 @@ const searchBarValue = computed<PaintSearchFilters>(() => searchFilters.value)
 
 function handleSearchUpdate(filters: PaintSearchFilters) {
   searchFilters.value = { ...filters }
-  // Keep catalog in sync with brand when on All tab
   if (activeTab.value === 'all') {
     catalog.filters.brand = filters.brand
+    catalog.filters.colorFamily = filters.paintType
   }
 }
 
@@ -133,10 +134,10 @@ const wishlistCount = computed(() => {
 // Brand list — merged + deduplicated across catalog brands and user brands
 // ---------------------------------------------------------------------------
 const brandsForCurrentTab = computed(() => {
+  if (activeTab.value === 'all') return catalog.availableBrands.value ?? []
   const catalogBrands = catalog.availableBrands.value ?? []
   const ownedBrands = userBrands.value ?? []
-  const merged = Array.from(new Set([...catalogBrands, ...ownedBrands]))
-  return merged.sort((a, b) => a.localeCompare(b))
+  return Array.from(new Set([...catalogBrands, ...ownedBrands])).sort((a, b) => a.localeCompare(b))
 })
 
 // ---------------------------------------------------------------------------
@@ -388,7 +389,7 @@ async function handleLogout() {
       <div v-else-if="!catalog.results.value.length">
         <EmptyState
           title="No paints found"
-          :description="searchFilters.q || catalog.filters.brand ? 'Try changing your search or filters.' : 'No catalog paints available.'"
+          :description="searchFilters.q || searchFilters.brand || searchFilters.paintType ? 'Try changing your search or filters.' : 'No catalog paints available.'"
         />
       </div>
 
