@@ -263,16 +263,16 @@ export const getPublicShoppingList = query({
     const paints = await ctx.db
       .query('paints')
       .withIndex('by_user', q => q.eq('userId', settings.userId))
-      .take(500)
+      .collect()
 
     const items = paints
       .filter(p => SHOPPING_LIST_STATUSES.has(p.status))
+      .slice(0, 500)
       .sort((a, b) => {
         const brandCmp = a.brand.localeCompare(b.brand)
         return brandCmp !== 0 ? brandCmp : a.name.localeCompare(b.name)
       })
       .map(p => ({
-        _id: p._id,
         status: p.status,
         brand: p.brand,
         name: p.name,
