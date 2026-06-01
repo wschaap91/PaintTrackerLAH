@@ -4,21 +4,23 @@ import type { Id } from '../../../convex/_generated/dataModel'
 import type { PaintSearchFilters } from '~/components/paint/PaintSearchBar.vue'
 
 // ---------------------------------------------------------------------------
+// Scroll-hide header
+// ---------------------------------------------------------------------------
+const { isHeaderVisible } = useScrollHeader()
+
+// ---------------------------------------------------------------------------
 // Tab state — default to 'owned'
 // ---------------------------------------------------------------------------
 const activeTab = ref<'all' | 'owned' | 'wishlist'>('owned')
 
 // ---------------------------------------------------------------------------
-// Shared search state (q and paintType persist across tabs)
+// Unified search state (all filters shared across tabs)
 // ---------------------------------------------------------------------------
 const searchFilters = ref<PaintSearchFilters>({
   q: '',
   brand: '',
   paintType: '',
 })
-
-// Per-tab brand state for Owned / Wishlist tabs
-const tabBrand = ref('')
 
 // ---------------------------------------------------------------------------
 // Data sources
@@ -47,7 +49,7 @@ const showImportExport = ref(false)
 const mutationError = ref<string | null>(null)
 
 // ---------------------------------------------------------------------------
-// Sync search query to catalog filters when on All tab
+// Sync unified search filters to catalog filters when on All tab
 // ---------------------------------------------------------------------------
 watch(
   () => searchFilters.value.q,
@@ -58,47 +60,24 @@ watch(
   },
 )
 
-// When switching TO the All tab, sync q into catalog filters (brand is already
-// tracked independently via catalog.filters.brand)
-watch(activeTab, (tab, prevTab) => {
+// When switching TO the All tab, sync q + brand into catalog filters
+watch(activeTab, (tab) => {
   if (tab === 'all') {
     catalog.filters.q = searchFilters.value.q
-  }
-  // Reset brand filter when crossing between owned↔wishlist tabs
-  const userPaintTabs = ['owned', 'wishlist']
-  if (userPaintTabs.includes(tab) && userPaintTabs.includes(prevTab) && tab !== prevTab) {
-    tabBrand.value = ''
+    catalog.filters.brand = searchFilters.value.brand
   }
 })
 
 // ---------------------------------------------------------------------------
-// Derived brand value for PaintSearchBar — per active tab
+// searchBarValue — directly reflects unified searchFilters
 // ---------------------------------------------------------------------------
-const currentBrand = computed(() =>
-  activeTab.value === 'all' ? catalog.filters.brand : tabBrand.value,
-)
-
-function handleBrandChange(brand: string) {
-  if (activeTab.value === 'all') {
-    catalog.filters.brand = brand
-  } else {
-    tabBrand.value = brand
-  }
-}
-
-// Combined model value for PaintSearchBar (q and paintType are shared;
-// brand is derived per-tab via currentBrand)
-const searchBarValue = computed<PaintSearchFilters>(() => ({
-  q: searchFilters.value.q,
-  paintType: searchFilters.value.paintType,
-  brand: currentBrand.value,
-}))
+const searchBarValue = computed<PaintSearchFilters>(() => searchFilters.value)
 
 function handleSearchUpdate(filters: PaintSearchFilters) {
-  searchFilters.value.q = filters.q
-  searchFilters.value.paintType = filters.paintType
-  if (filters.brand !== currentBrand.value) {
-    handleBrandChange(filters.brand)
+  searchFilters.value = { ...filters }
+  // Keep catalog in sync with brand when on All tab
+  if (activeTab.value === 'all') {
+    catalog.filters.brand = filters.brand
   }
 }
 
@@ -122,7 +101,7 @@ const ownedPaints = computed(() => {
     (p) =>
       (p.status === 'owned' || p.status === 'running_low' || p.status === 'empty') &&
       matchesSearch(p, searchFilters.value.q) &&
-      matchesBrand(p, tabBrand.value),
+      matchesBrand(p, searchFilters.value.brand),
   )
 })
 
@@ -132,7 +111,7 @@ const wishlistPaints = computed(() => {
     (p) =>
       p.status === 'wishlist' &&
       matchesSearch(p, searchFilters.value.q) &&
-      matchesBrand(p, tabBrand.value),
+      matchesBrand(p, searchFilters.value.brand),
   )
 })
 
@@ -151,11 +130,13 @@ const wishlistCount = computed(() => {
 })
 
 // ---------------------------------------------------------------------------
-// Brand list per tab
+// Brand list — merged + deduplicated across catalog brands and user brands
 // ---------------------------------------------------------------------------
 const brandsForCurrentTab = computed(() => {
-  if (activeTab.value === 'all') return catalog.availableBrands.value
-  return userBrands.value ?? []
+  const catalogBrands = catalog.availableBrands.value ?? []
+  const ownedBrands = userBrands.value ?? []
+  const merged = Array.from(new Set([...catalogBrands, ...ownedBrands]))
+  return merged.sort((a, b) => a.localeCompare(b))
 })
 
 // ---------------------------------------------------------------------------
@@ -322,28 +303,33 @@ async function handleLogout() {
 
 <template>
   <div>
-    <!-- Header -->
-    <div class="mb-4 flex items-center justify-between">
-      <h1 class="text-2xl font-semibold text-gray-900">My Paints</h1>
-      <div class="flex items-center gap-2">
-        <!-- Desktop-only buttons -->
-        <button
-          class="hidden sm:inline-flex rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-          @click="showQuickAdd = true"
-        >
-          Quick Add
-        </button>
-        <button
-          class="hidden sm:inline-flex rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-          @click="showImportExport = !showImportExport"
-        >
-          Import/Export
-        </button>
-        <!-- ThreeDotMenu (always visible) -->
-        <ThreeDotMenu
-          @import-export="handleImportExport"
-          @logout="handleLogout"
-        />
+    <!-- Auto-hide page title header -->
+    <div
+      class="sticky top-0 z-40 bg-gray-50 transition-transform duration-200"
+      :class="isHeaderVisible ? 'translate-y-0' : '-translate-y-full'"
+    >
+      <div class="flex items-center justify-between py-3">
+        <h1 class="text-2xl font-semibold text-gray-900">My Paints</h1>
+        <div class="flex items-center gap-2">
+          <!-- Desktop-only buttons -->
+          <button
+            class="hidden sm:inline-flex rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            @click="showQuickAdd = true"
+          >
+            Quick Add
+          </button>
+          <button
+            class="hidden sm:inline-flex rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            @click="showImportExport = !showImportExport"
+          >
+            Import/Export
+          </button>
+          <!-- ThreeDotMenu (always visible) -->
+          <ThreeDotMenu
+            @import-export="handleImportExport"
+            @logout="handleLogout"
+          />
+        </div>
       </div>
     </div>
 
@@ -352,14 +338,29 @@ async function handleLogout() {
       <PaintImportExport :paints="allPaints ?? []" />
     </div>
 
-    <!-- Search bar -->
-    <div class="mb-3">
-      <PaintSearchBar
-        :model-value="searchBarValue"
-        :brands="brandsForCurrentTab"
-        placeholder="Search paints..."
-        @update:model-value="handleSearchUpdate($event)"
-      />
+    <!-- Sticky search bar + tab pills -->
+    <div
+      class="sticky z-30 -mx-4 bg-gray-50 px-4 transition-[top] duration-200"
+      :class="isHeaderVisible ? 'top-[52px] sm:top-[52px]' : 'top-0'"
+    >
+      <!-- Search bar -->
+      <div class="pt-2 pb-2">
+        <PaintSearchBar
+          :model-value="searchBarValue"
+          :brands="brandsForCurrentTab"
+          placeholder="Search paints..."
+          @update:model-value="handleSearchUpdate($event)"
+        />
+      </div>
+
+      <!-- Tab pills -->
+      <div class="pb-3">
+        <PaintTabPills
+          v-model="activeTab"
+          :owned-count="ownedCount"
+          :wishlist-count="wishlistCount"
+        />
+      </div>
     </div>
 
     <!-- Mutation error banner -->
@@ -376,15 +377,6 @@ async function handleLogout() {
       >
         Dismiss
       </button>
-    </div>
-
-    <!-- Tab pills -->
-    <div class="mb-4">
-      <PaintTabPills
-        v-model="activeTab"
-        :owned-count="ownedCount"
-        :wishlist-count="wishlistCount"
-      />
     </div>
 
     <!-- All tab (catalog browse) -->
@@ -441,7 +433,7 @@ async function handleLogout() {
       <div v-else-if="!ownedPaints.length">
         <EmptyState
           title="No owned paints"
-          :description="searchFilters.q || tabBrand ? 'Try changing your search or filters.' : 'Add paints from the catalog to get started.'"
+          :description="searchFilters.q || searchFilters.brand ? 'Try changing your search or filters.' : 'Add paints from the catalog to get started.'"
         />
       </div>
 
@@ -458,6 +450,8 @@ async function handleLogout() {
             status: paint.status,
             catalogPaintId: paint.catalogPaintId as string | undefined,
           }"
+          :is-owned="true"
+          :is-wishlisted="paint.status === 'wishlist'"
           @toggle-owned="handleUserToggleOwned"
           @toggle-wishlist="handleUserToggleWishlist"
         />
@@ -473,7 +467,7 @@ async function handleLogout() {
       <div v-else-if="!wishlistPaints.length">
         <EmptyState
           title="No wishlisted paints"
-          :description="searchFilters.q || tabBrand ? 'Try changing your search or filters.' : 'Browse the catalog and heart paints you want.'"
+          :description="searchFilters.q || searchFilters.brand ? 'Try changing your search or filters.' : 'Browse the catalog and heart paints you want.'"
         />
       </div>
 
@@ -490,6 +484,8 @@ async function handleLogout() {
             status: paint.status,
             catalogPaintId: paint.catalogPaintId as string | undefined,
           }"
+          :is-owned="false"
+          :is-wishlisted="true"
           @toggle-owned="handleUserToggleOwned"
           @toggle-wishlist="handleUserToggleWishlist"
         />
